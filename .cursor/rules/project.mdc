@@ -1,0 +1,60 @@
+---
+description: Non-negotiable standards for Riyadh Prints (Next.js, bilingual, quote-request, SEO, architecture).
+alwaysApply: true
+---
+
+# Riyadh Prints — project standards
+
+## Project
+
+Riyadh Prints is a printing company in Riyadh, Saudi Arabia. Migrating from WordPress/WooCommerce to Next.js.
+
+- Bilingual: English (default, un-prefixed URLs) + Arabic (`/ar` prefix, RTL).
+- Catalogue + quote-request model. There is **no cart or checkout**.
+- Primary CTAs are **Request a Quote** and **WhatsApp**.
+
+## Stack
+
+Next.js 15 App Router, TypeScript strict, Tailwind CSS v4, shadcn/ui, Prisma + Neon Postgres, Auth.js v5, Zod, react-hook-form, Tiptap, Vercel.
+
+## Architecture
+
+- Server Components by default. Add `"use client"` **only** on leaf components that need state, effects, or browser APIs. Never put `"use client"` on a page or layout.
+- All data access lives in `src/server/queries/*.ts`. Components never import `PrismaClient` directly.
+- All mutations are Server Actions in `src/server/actions/*.ts`. Every action: (1) validates input with Zod, (2) checks auth+role, (3) writes, (4) calls `revalidateTag`, (5) returns a typed `{ ok, data } | { ok: false, error }` result. Never throw raw errors to the client.
+- Every read query is wrapped in `unstable_cache` with explicit cache tags. Every write revalidates its tags. This is how a fully dynamic, dashboard-driven site still serves static-speed pages.
+- No `useEffect` for data fetching. No client-side fetch of first-paint content.
+- Zod schemas live in `src/lib/validations/*.ts` and are shared by forms and actions.
+
+## SEO (mandatory on every route)
+
+- Export `generateMetadata` from every page. Never hardcode a `<title>` or `<meta>`.
+- Metadata is read from the database (`metaTitle`, `metaDescription`, `ogImage`, `canonical`, `noIndex`), with a sensible fallback chain: DB value → derived from content → global default.
+- Every route sets an absolute canonical URL and hreflang alternates for `en` + `ar` + `x-default`.
+- Every content page emits JSON-LD via a typed helper. No hand-written `<script>` tags in components.
+- Every page renders `<Breadcrumbs>` with matching BreadcrumbList JSON-LD.
+- Exactly one `<h1>` per page. Heading levels never skip.
+- All images use `next/image` with explicit width/height (or `fill` + a sized container), meaningful alt text from the DB, and `priority` only on the LCP image.
+
+## Performance
+
+- Zero layout shift: reserve space for every image, embed, and async block.
+- `next/font` with `display: swap` and preload. No `<link>` to Google Fonts.
+- Heavy client widgets (carousels, chat widget, maps, lightbox) are `next/dynamic` with `ssr: false` and a skeleton of the same height.
+- Analytics and third-party scripts use `next/script` with `strategy="afterInteractive"` or `lazyOnload`. Never `beforeInteractive`.
+- No client-side date/locale libraries in the main bundle. Use `Intl`.
+
+## Accessibility
+
+Semantic HTML, visible focus rings, `aria-label`s on icon-only buttons, `dir="rtl"` and `lang` set correctly per locale, colour contrast ≥ 4.5:1.
+
+## Code style
+
+- Named exports; `@/*` path alias.
+- No `any`; no `console.log` in committed code.
+- Components under 200 lines — split instead of nesting deeply.
+- Co-locate component-specific types.
+
+## When unsure
+
+Ask before inventing a new folder, library, or data model. Prefer extending existing patterns over creating parallel ones.
