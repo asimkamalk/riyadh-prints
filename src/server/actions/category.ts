@@ -11,12 +11,18 @@ import {
   reorderSchema,
   translationCopySchema,
 } from "@/lib/validations/common";
+import { categoryMoveSchema, categorySaveSchema } from "@/lib/validations/category";
+import { emptyToNull } from "@/server/catalogue/seo-write";
 import { prisma } from "@/server/db";
 
-import { CONTENT_ROLES, createAction } from "./_helpers";
+import { CONTENT_ROLES, createAction, ActionError } from "./_helpers";
 import { redirectOnPublishedSlugChange } from "./_redirects";
 import { copySuffix, nextStatus, notFound, reorderTransaction } from "./_resource";
 import { generateUniqueSlug } from "./_slug";
+import {
+  categoryTranslationData,
+  parentWouldCycle,
+} from "@/server/catalogue/category-write";
 
 const categoryKindSchema = z.enum([
   "PRODUCT",
@@ -335,5 +341,174 @@ export const bulkDeleteCategories = createAction({
       data: { status: "ARCHIVED" },
     });
     return { count: result.count };
+  },
+});
+
+export const toggleCategoryFeatured = createAction({
+  input: idSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => categoryTags(r.slug),
+  audit: {
+    action: "category.toggleFeatured",
+    entityType: "category",
+    entityId: (i) => i.id,
+  },
+  handler: async ({ input }) => {
+    const existing = await prisma.category.findUnique({
+      where: { id: input.id },
+      select: { id: true, slug: true, isFeatured: true },
+    });
+    if (!existing) {
+      notFound("Category");
+    }
+    return prisma.category.update({
+      where: { id: existing.id },
+      data: { isFeatured: !existing.isFeatured },
+      select: { id: true, slug: true, isFeatured: true },
+    });
+  },
+});
+
+export const moveCategory = createAction({
+  input: categoryMoveSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => categoryTags(r.slug),
+  audit: {
+    action: "category.move",
+    entityType: "category",
+    entityId: (i) => i.id,
+  },
+  handler: async ({ input }) => {
+    const existing = await prisma.category.findUnique({
+      where: { id: input.id },
+      select: { id: true, slug: true },
+    });
+    if (!existing) {
+      notFound("Category");
+    }
+    if (await parentWouldCycle(existing.id, input.parentId)) {
+      throw new ActionError("A category cannot be nested under itself.", "INVALID");
+    }
+    return prisma.category.update({
+      where: { id: existing.id },
+      data: { parentId: input.parentId, sortOrder: input.sortOrder },
+      select: { id: true, slug: true },
+    });
+  },
+});
+
+export const saveCategory = createAction({
+  input: categorySaveSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => categoryTags(r.slug),
+  audit: {
+    action: "category.save",
+    entityType: "category",
+    entityId: (_i, r) => r.id,
+  },
+  handler: async ({ input }) => {
+    const parentId = input.parentId === undefined ? undefined : input.parentId;
+    if (input.id && parentId && (await parentWouldCycle(input.id, parentId))) {
+      throw new ActionError("A category cannot be nested under itself.", "INVALID");
+    }
+    const slug = await generateUniqueSlug(
+      "category",
+      "en",
+      input.slugEn || input.nameEn,
+      input.id,
+    );
+    const slugAr = await generateUniqueSlug(
+      "category",
+      "ar",
+      input.slugAr || input.nameAr || input.nameEn,
+      input.id,
+    );
+    const status = input.status ?? "DRAFT";
+    const core = {
+      slug,
+      kind: input.kind ?? "PRODUCT",
+      parentId,
+      status,
+      isFeatured: input.isFeatured ?? false,
+      iconName: emptyToNull(input.iconName) ?? null,
+      imageId: input.imageId === undefined ? undefined : input.imageId,
+      sortOrder: input.sortOrder ?? 0,
+    };
+
+    if (!input.id) {
+      return prisma.category.create({
+        data: {
+          ...core,
+          translations: {
+            create: [
+              { locale: "EN", ...categoryTranslationData(input, "EN", slug) },
+              { locale: "AR", ...categoryTranslationData(input, "AR", slugAr) },
+            ],
+          },
+        },
+        select: { id: true, slug: true, status: true },
+      });
+    }
+
+    const existing = await prisma.category.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        slug: true,
+        status: true,
+        kind: true,
+        translations: { select: { locale: true, slug: true } },
+      },
+    });
+    if (!existing) {
+      notFound("Category");
+    }
+    const published = status === "PUBLISHED";
+    const kind = input.kind ?? existing.kind;
+    if (slug !== existing.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "category",
+        oldSlug: existing.slug,
+        newSlug: slug,
+        locale: "en",
+        kind,
+      });
+    }
+    const ar = existing.translations.find((row) => row.locale === "AR");
+    if (ar && slugAr !== ar.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "category",
+        oldSlug: ar.slug,
+        newSlug: slugAr,
+        locale: "ar",
+        kind,
+      });
+    }
+    const row = await prisma.category.update({
+      where: { id: existing.id },
+      data: core,
+      select: { id: true, slug: true, status: true },
+    });
+    await prisma.categoryTranslation.upsert({
+      where: { categoryId_locale: { categoryId: existing.id, locale: "EN" } },
+      create: {
+        categoryId: existing.id,
+        locale: "EN",
+        ...categoryTranslationData(input, "EN", slug),
+      },
+      update: categoryTranslationData(input, "EN", slug),
+    });
+    await prisma.categoryTranslation.upsert({
+      where: { categoryId_locale: { categoryId: existing.id, locale: "AR" } },
+      create: {
+        categoryId: existing.id,
+        locale: "AR",
+        ...categoryTranslationData(input, "AR", slugAr),
+      },
+      update: categoryTranslationData(input, "AR", slugAr),
+    });
+    return row;
   },
 });

@@ -1,16 +1,18 @@
 export {
   getProductBySlug,
+  getProductByIdUncached,
   getProductSlugsForSitemap,
   getPublishedProducts,
   getRelatedProducts,
 } from "./products";
-export { getCategoryBySlug, getCategoryTree } from "./categories";
+export { getCategoryBySlug, getCategoryByIdUncached, getCategoryTree } from "./categories";
 export {
   getAllServices,
   getServiceBySlug,
+  getServiceByIdUncached,
   getServiceSlugsForSitemap,
 } from "./services";
-export { getPageBySlugPath, getPageSlugsForSitemap } from "./pages";
+export { getPageBySlugPath, getPageSlugsForSitemap, getPageByIdUncached } from "./pages";
 export {
   getPostBySlug,
   getPosts,
@@ -37,6 +39,43 @@ export {
   getDashboardTopProducts,
 } from "./admin-dashboard";
 export { listAdminFaqs, listAdminMedia, listMediaFolders, searchAdminEntities } from "./admin";
+export {
+  listAdminProducts,
+  listAdminProductChoices,
+  getAdminProduct,
+  type AdminProductDetail,
+  type AdminProductListItem,
+  type AdminNamedOption,
+} from "./admin-products";
+export {
+  listAdminCategoryTree,
+  listAdminCategoryOptions,
+  getAdminCategory,
+  type AdminCategoryNode,
+  type AdminCategoryDetail,
+  type AdminCategoryOption,
+} from "./admin-categories";
+export {
+  listAdminServices,
+  getAdminService,
+  type AdminServiceDetail,
+  type AdminServiceListItem,
+} from "./admin-services";
+export {
+  resolveProductPage,
+  resolveCategoryPage,
+  resolveServicePage,
+} from "./catalogue-preview";
+export { resolveCmsPage } from "./page-preview";
+export {
+  listAdminPageTree,
+  listAdminPageOptions,
+  getAdminPage,
+  type AdminPageNode,
+  type AdminPageDetail,
+  type AdminPageOption,
+  type AdminPageSection,
+} from "./admin-pages";
 export {
   getAdminMedia,
   listAdminMediaPage,

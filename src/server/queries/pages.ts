@@ -14,7 +14,7 @@ import {
   translationLocales,
 } from "./_shared";
 
-function pageSelect(locale: Locale) {
+function pageSelect(locale: Locale, drafts = false) {
   return {
     id: true,
     slug: true,
@@ -33,12 +33,13 @@ function pageSelect(locale: Locale) {
       },
     },
     sections: {
-      where: { isVisible: true },
-      orderBy: { sortOrder: "asc" },
+      where: drafts ? {} : { isVisible: true },
+      orderBy: { sortOrder: "asc" as const },
       select: {
         id: true,
         type: true,
         sortOrder: true,
+        isVisible: true,
         settings: true,
         translations: {
           where: { locale: { in: translationLocales(locale) } },
@@ -76,6 +77,7 @@ type PageRow = {
     id: string;
     type: PageSectionDto["type"];
     sortOrder: number;
+    isVisible?: boolean;
     settings: unknown;
     translations: { locale: "EN" | "AR"; data: unknown }[];
   }[];
@@ -84,8 +86,12 @@ type PageRow = {
 function mapSections(
   sections: PageRow["sections"],
   locale: Locale,
+  includeHidden = false,
 ): PageSectionDto[] {
   return sections.flatMap((section) => {
+    if (!includeHidden && section.isVisible === false) {
+      return [];
+    }
     const picked = pickTranslation(section.translations, locale);
     if (!picked) {
       return [];
@@ -249,4 +255,48 @@ export async function getPageSlugsForSitemap(): Promise<SitemapSlug[]> {
       }));
     },
   });
+}
+
+async function ancestorSlugsAny(parentId: string | null, locale: Locale): Promise<string[]> {
+  const slugs: string[] = [];
+  let current = parentId;
+  while (current) {
+    const parent = await prisma.page.findUnique({
+      where: { id: current },
+      select: {
+        parentId: true,
+        slug: true,
+        translations: {
+          where: { locale: { in: translationLocales(locale) } },
+          select: { locale: true, slug: true },
+        },
+      },
+    });
+    if (!parent) {
+      break;
+    }
+    const picked = pickTranslation(parent.translations, locale);
+    slugs.unshift(picked?.value.slug ?? parent.slug);
+    current = parent.parentId;
+  }
+  return slugs;
+}
+
+/**
+ * Draft preview by id (bypasses status and cache).
+ */
+export async function getPageByIdUncached(
+  id: string,
+  locale: Locale,
+): Promise<PageDetail | null> {
+  const row = await prisma.page.findUnique({
+    where: { id },
+    select: pageSelect(locale, true),
+  });
+  if (!row) {
+    return null;
+  }
+  const ancestorPath = await ancestorSlugsAny(row.parentId, locale);
+  const leafSlug = pickTranslation(row.translations, locale)?.value.slug ?? row.slug;
+  return mapPage(row, locale, [...ancestorPath, leafSlug]);
 }

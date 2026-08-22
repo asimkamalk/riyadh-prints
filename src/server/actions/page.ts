@@ -11,9 +11,12 @@ import {
   jsonValueSchema,
   reorderSchema,
 } from "@/lib/validations/common";
+import { pageSaveSchema } from "@/lib/validations/page";
+import { emptyToNull, parsePublishedAt } from "@/server/catalogue/seo-write";
+import { pageParentWouldCycle, pageTranslationData } from "@/server/catalogue/page-write";
 import { prisma } from "@/server/db";
 
-import { CONTENT_ROLES, createAction } from "./_helpers";
+import { ActionError, CONTENT_ROLES, createAction } from "./_helpers";
 import { redirectOnPublishedSlugChange } from "./_redirects";
 import { copySuffix, nextStatus, notFound, reorderTransaction } from "./_resource";
 import { generateUniqueSlug } from "./_slug";
@@ -334,5 +337,107 @@ export const bulkDeletePages = createAction({
       data: { status: "ARCHIVED" },
     });
     return { count: result.count };
+  },
+});
+
+export const savePage = createAction({
+  input: pageSaveSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => pageTags(r.slug),
+  audit: { action: "page.save", entityType: "page", entityId: (_i, r) => r.id },
+  handler: async ({ input }) => {
+    if (input.id && (await pageParentWouldCycle(input.id, input.parentId ?? null))) {
+      throw new ActionError("A page cannot be nested under itself.");
+    }
+    const slug = await generateUniqueSlug("page", "en", input.slugEn ?? input.titleEn, input.id);
+    const slugAr = await generateUniqueSlug(
+      "page",
+      "ar",
+      input.slugAr ?? input.titleAr ?? input.titleEn,
+      input.id,
+    );
+    const status = input.status ?? "DRAFT";
+    const publishedAt = parsePublishedAt(input.publishedAt);
+    const core = {
+      slug,
+      parentId: input.parentId ?? null,
+      template: emptyToNull(input.template) ?? null,
+      status,
+      sortOrder: input.sortOrder ?? 0,
+      showInSitemap: input.showInSitemap ?? true,
+      changeFrequency: emptyToNull(input.changeFrequency) ?? null,
+      publishedAt: status === "PUBLISHED" ? (publishedAt ?? new Date()) : publishedAt,
+      priority: input.priority ?? null,
+    };
+
+    if (!input.id) {
+      return prisma.page.create({
+        data: {
+          ...core,
+          translations: {
+            create: [
+              { locale: "EN", ...pageTranslationData(input, "EN", slug) },
+              { locale: "AR", ...pageTranslationData(input, "AR", slugAr) },
+            ],
+          },
+        },
+        select: { id: true, slug: true, status: true },
+      });
+    }
+
+    const existing = await prisma.page.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        slug: true,
+        status: true,
+        parentId: true,
+        translations: { select: { locale: true, slug: true } },
+      },
+    });
+    if (!existing) {
+      notFound("Page");
+    }
+    const published = status === "PUBLISHED";
+    const ancestors = await ancestorSlugs(input.parentId ?? existing.parentId);
+    if (slug !== existing.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "page",
+        oldSlug: existing.slug,
+        newSlug: slug,
+        locale: "en",
+        pageSegmentsOld: [...(await ancestorSlugs(existing.parentId)), existing.slug],
+        pageSegmentsNew: [...ancestors, slug],
+      });
+    }
+    const ar = existing.translations.find((row) => row.locale === "AR");
+    if (ar && slugAr !== ar.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "page",
+        oldSlug: ar.slug,
+        newSlug: slugAr,
+        locale: "ar",
+        pageSegmentsOld: [...(await ancestorSlugs(existing.parentId)), ar.slug],
+        pageSegmentsNew: [...ancestors, slugAr],
+      });
+    }
+    const row = await prisma.page.update({
+      where: { id: existing.id },
+      data: core,
+      select: { id: true, slug: true, status: true },
+    });
+    await prisma.pageTranslation.upsert({
+      where: { pageId_locale: { pageId: existing.id, locale: "EN" } },
+      create: { pageId: existing.id, locale: "EN", ...pageTranslationData(input, "EN", slug) },
+      update: pageTranslationData(input, "EN", slug),
+    });
+    await prisma.pageTranslation.upsert({
+      where: { pageId_locale: { pageId: existing.id, locale: "AR" } },
+      create: { pageId: existing.id, locale: "AR", ...pageTranslationData(input, "AR", slugAr) },
+      update: pageTranslationData(input, "AR", slugAr),
+    });
+    return row;
   },
 });

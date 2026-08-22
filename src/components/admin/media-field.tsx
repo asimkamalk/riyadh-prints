@@ -27,7 +27,11 @@ export function MediaField({
       <Label>{label}</Label>
       {value ? (
         <div className="flex items-center gap-3 rounded-lg border p-2">
-          <MediaThumb item={value} className="size-16 shrink-0 rounded-md" sizes="64px" />
+          {value.url ? (
+            <MediaThumb item={value} className="size-16 shrink-0 rounded-md" sizes="64px" />
+          ) : (
+            <div className="size-16 shrink-0 rounded-md bg-muted" />
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{fileBasename(value.pathname)}</p>
             <p className="truncate text-xs text-muted-foreground">{value.altEn || value.mimeType}</p>

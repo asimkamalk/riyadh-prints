@@ -284,6 +284,140 @@ export async function getPublishedProducts(
  * Product detail + metadata for `/product/[slug]`.
  * Cache tags: `product:{slug}`, `products`.
  */
+function productDetailSelect(locale: Locale) {
+  return {
+    ...productCardSelect(locale),
+    publishedAt: true,
+    translations: {
+      where: { locale: { in: translationLocales(locale) } },
+      select: {
+        locale: true,
+        name: true,
+        slug: true,
+        shortDescription: true,
+        longDescription: true,
+        specifications: true,
+        materials: true,
+        useCases: true,
+        ...seoSelect,
+      },
+    },
+    images: {
+      orderBy: { sortOrder: "asc" as const },
+      select: {
+        isPrimary: true,
+        media: { select: mediaSelect(locale) },
+      },
+    },
+    options: {
+      orderBy: { sortOrder: "asc" as const },
+      select: {
+        id: true,
+        key: true,
+        sortOrder: true,
+        translations: {
+          where: { locale: { in: translationLocales(locale) } },
+          select: { locale: true, label: true },
+        },
+        values: {
+          orderBy: { sortOrder: "asc" as const },
+          select: {
+            id: true,
+            value: true,
+            priceModifier: true,
+            sortOrder: true,
+            translations: {
+              where: { locale: { in: translationLocales(locale) } },
+              select: { locale: true, label: true },
+            },
+          },
+        },
+      },
+    },
+    priceTiers: {
+      orderBy: { minQty: "asc" as const },
+      select: { minQty: true, maxQty: true, unitPrice: true },
+    },
+  };
+}
+
+function mapProductDetail(
+  row: Awaited<ReturnType<typeof loadProductRow>>,
+  locale: Locale,
+): ProductDetail | null {
+  if (!row) {
+    return null;
+  }
+  const card = mapProductCard(row, locale);
+  if (!card) {
+    return null;
+  }
+  const picked = pickTranslation(row.translations, locale);
+  if (!picked) {
+    return null;
+  }
+  const options: ProductOptionDto[] = row.options.flatMap((option) => {
+    const label = pickTranslation(option.translations, locale);
+    if (!label) {
+      return [];
+    }
+    return [
+      {
+        id: option.id,
+        key: option.key,
+        label: label.value.label,
+        sortOrder: option.sortOrder,
+        servedLocale: label.servedLocale,
+        isFallback: label.isFallback,
+        values: option.values.flatMap((value) => {
+          const valueLabel = pickTranslation(value.translations, locale);
+          if (!valueLabel) {
+            return [];
+          }
+          return [
+            {
+              id: value.id,
+              value: value.value,
+              label: valueLabel.value.label,
+              priceModifier: decimalToString(value.priceModifier) ?? "0",
+              sortOrder: value.sortOrder,
+              servedLocale: valueLabel.servedLocale,
+              isFallback: valueLabel.isFallback,
+            },
+          ];
+        }),
+      },
+    ];
+  });
+  const images = row.images
+    .map((image) => mapMedia(image.media, locale))
+    .filter((image): image is NonNullable<typeof image> => image !== null);
+
+  return {
+    ...card,
+    longDescription: toJson(picked.value.longDescription),
+    specifications: toJson(picked.value.specifications),
+    materials: toJson(picked.value.materials),
+    useCases: toJson(picked.value.useCases),
+    images,
+    options,
+    priceTiers: row.priceTiers.map((tier) => ({
+      minQty: tier.minQty,
+      maxQty: tier.maxQty,
+      unitPrice: decimalToString(tier.unitPrice) ?? "0",
+    })),
+    seo: mapSeo(picked.value),
+    publishedAt: toIso(row.publishedAt),
+  };
+}
+
+async function loadProductRow(where: Prisma.ProductWhereInput, locale: Locale) {
+  return prisma.product.findFirst({
+    where,
+    select: productDetailSelect(locale),
+  });
+}
+
 export async function getProductBySlug(
   slug: string,
   locale: Locale,
@@ -291,133 +425,22 @@ export async function getProductBySlug(
   return cachedQuery({
     key: ["product-by-slug", slug, locale],
     tags: [tags.product(slug), tags.products()],
-    fn: async () => {
-      const row = await prisma.product.findFirst({
-        where: {
-          ...published,
-          OR: [{ slug }, { translations: { some: { slug } } }],
-        },
-        select: {
-          ...productCardSelect(locale),
-          publishedAt: true,
-          translations: {
-            where: { locale: { in: translationLocales(locale) } },
-            select: {
-              locale: true,
-              name: true,
-              slug: true,
-              shortDescription: true,
-              longDescription: true,
-              specifications: true,
-              materials: true,
-              useCases: true,
-              ...seoSelect,
-            },
-          },
-          images: {
-            orderBy: { sortOrder: "asc" },
-            select: {
-              isPrimary: true,
-              media: { select: mediaSelect(locale) },
-            },
-          },
-          options: {
-            orderBy: { sortOrder: "asc" },
-            select: {
-              id: true,
-              key: true,
-              sortOrder: true,
-              translations: {
-                where: { locale: { in: translationLocales(locale) } },
-                select: { locale: true, label: true },
-              },
-              values: {
-                orderBy: { sortOrder: "asc" },
-                select: {
-                  id: true,
-                  value: true,
-                  priceModifier: true,
-                  sortOrder: true,
-                  translations: {
-                    where: { locale: { in: translationLocales(locale) } },
-                    select: { locale: true, label: true },
-                  },
-                },
-              },
-            },
-          },
-          priceTiers: {
-            orderBy: { minQty: "asc" },
-            select: { minQty: true, maxQty: true, unitPrice: true },
-          },
-        },
-      });
-      if (!row) {
-        return null;
-      }
-      const card = mapProductCard(row, locale);
-      if (!card) {
-        return null;
-      }
-      const picked = pickTranslation(row.translations, locale);
-      if (!picked) {
-        return null;
-      }
-      const options: ProductOptionDto[] = row.options.flatMap((option) => {
-        const label = pickTranslation(option.translations, locale);
-        if (!label) {
-          return [];
-        }
-        return [
-          {
-            id: option.id,
-            key: option.key,
-            label: label.value.label,
-            sortOrder: option.sortOrder,
-            servedLocale: label.servedLocale,
-            isFallback: label.isFallback,
-            values: option.values.flatMap((value) => {
-              const valueLabel = pickTranslation(value.translations, locale);
-              if (!valueLabel) {
-                return [];
-              }
-              return [
-                {
-                  id: value.id,
-                  value: value.value,
-                  label: valueLabel.value.label,
-                  priceModifier: decimalToString(value.priceModifier) ?? "0",
-                  sortOrder: value.sortOrder,
-                  servedLocale: valueLabel.servedLocale,
-                  isFallback: valueLabel.isFallback,
-                },
-              ];
-            }),
-          },
-        ];
-      });
-      const images = row.images
-        .map((image) => mapMedia(image.media, locale))
-        .filter((image): image is NonNullable<typeof image> => image !== null);
-
-      return {
-        ...card,
-        longDescription: toJson(picked.value.longDescription),
-        specifications: toJson(picked.value.specifications),
-        materials: toJson(picked.value.materials),
-        useCases: toJson(picked.value.useCases),
-        images,
-        options,
-        priceTiers: row.priceTiers.map((tier) => ({
-          minQty: tier.minQty,
-          maxQty: tier.maxQty,
-          unitPrice: decimalToString(tier.unitPrice) ?? "0",
-        })),
-        seo: mapSeo(picked.value),
-        publishedAt: toIso(row.publishedAt),
-      };
-    },
+    fn: async () =>
+      mapProductDetail(
+        await loadProductRow(
+          { ...published, OR: [{ slug }, { translations: { some: { slug } } }] },
+          locale,
+        ),
+        locale,
+      ),
   });
+}
+
+export async function getProductByIdUncached(
+  id: string,
+  locale: Locale,
+): Promise<ProductDetail | null> {
+  return mapProductDetail(await loadProductRow({ id }, locale), locale);
 }
 
 /**

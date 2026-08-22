@@ -26,7 +26,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn(fontSans.variable, fontArabic.variable, "font-sans")}
     >
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider>
           {children}
           <Toaster position="top-center" richColors />

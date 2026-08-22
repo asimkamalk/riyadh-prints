@@ -12,6 +12,9 @@ import {
   reorderSchema,
   translationCopySchema,
 } from "@/lib/validations/common";
+import { serviceSaveSchema } from "@/lib/validations/service";
+import { emptyToNull, parsePublishedAt } from "@/server/catalogue/seo-write";
+import { serviceTranslationData } from "@/server/catalogue/service-write";
 import { prisma } from "@/server/db";
 
 import { CONTENT_ROLES, createAction } from "./_helpers";
@@ -323,5 +326,143 @@ export const bulkDeleteServices = createAction({
       data: { status: "ARCHIVED" },
     });
     return { count: result.count };
+  },
+});
+
+export const toggleServiceFeatured = createAction({
+  input: idSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => serviceTags(r.slug),
+  audit: {
+    action: "service.toggleFeatured",
+    entityType: "service",
+    entityId: (i) => i.id,
+  },
+  handler: async ({ input }) => {
+    const existing = await prisma.service.findUnique({
+      where: { id: input.id },
+      select: { id: true, slug: true, isFeatured: true },
+    });
+    if (!existing) {
+      notFound("Service");
+    }
+    return prisma.service.update({
+      where: { id: existing.id },
+      data: { isFeatured: !existing.isFeatured },
+      select: { id: true, slug: true, isFeatured: true },
+    });
+  },
+});
+
+export const saveService = createAction({
+  input: serviceSaveSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => serviceTags(r.slug),
+  audit: {
+    action: "service.save",
+    entityType: "service",
+    entityId: (_i, r) => r.id,
+  },
+  handler: async ({ input }) => {
+    const slug = await generateUniqueSlug(
+      "service",
+      "en",
+      input.slugEn || input.nameEn,
+      input.id,
+    );
+    const slugAr = await generateUniqueSlug(
+      "service",
+      "ar",
+      input.slugAr || input.nameAr || input.nameEn,
+      input.id,
+    );
+    const status = input.status ?? "DRAFT";
+    const publishedAt =
+      parsePublishedAt(input.publishedAt) ?? (status === "PUBLISHED" ? new Date() : null);
+    const core = {
+      slug,
+      status,
+      isFeatured: input.isFeatured ?? false,
+      iconName: emptyToNull(input.iconName) ?? null,
+      categoryId: input.categoryId === undefined ? undefined : input.categoryId,
+      turnaroundTime: emptyToNull(input.turnaroundTime),
+      startingPrice: emptyToNull(input.startingPrice),
+      imageId: input.imageId === undefined ? undefined : input.imageId,
+      heroImageId: input.heroImageId === undefined ? undefined : input.heroImageId,
+      publishedAt,
+    };
+
+    if (!input.id) {
+      const created = await prisma.service.create({
+        data: {
+          ...core,
+          translations: {
+            create: [
+              { locale: "EN", ...serviceTranslationData(input, "EN", slug) },
+              { locale: "AR", ...serviceTranslationData(input, "AR", slugAr) },
+            ],
+          },
+        },
+        select: { id: true, slug: true, status: true },
+      });
+      return created;
+    }
+
+    const existing = await prisma.service.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        slug: true,
+        status: true,
+        translations: { select: { locale: true, slug: true } },
+      },
+    });
+    if (!existing) {
+      notFound("Service");
+    }
+    const published = status === "PUBLISHED";
+    if (slug !== existing.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "service",
+        oldSlug: existing.slug,
+        newSlug: slug,
+        locale: "en",
+      });
+    }
+    const ar = existing.translations.find((row) => row.locale === "AR");
+    if (ar && slugAr !== ar.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "service",
+        oldSlug: ar.slug,
+        newSlug: slugAr,
+        locale: "ar",
+      });
+    }
+    const row = await prisma.service.update({
+      where: { id: existing.id },
+      data: core,
+      select: { id: true, slug: true, status: true },
+    });
+    await prisma.serviceTranslation.upsert({
+      where: { serviceId_locale: { serviceId: existing.id, locale: "EN" } },
+      create: {
+        serviceId: existing.id,
+        locale: "EN",
+        ...serviceTranslationData(input, "EN", slug),
+      },
+      update: serviceTranslationData(input, "EN", slug),
+    });
+    await prisma.serviceTranslation.upsert({
+      where: { serviceId_locale: { serviceId: existing.id, locale: "AR" } },
+      create: {
+        serviceId: existing.id,
+        locale: "AR",
+        ...serviceTranslationData(input, "AR", slugAr),
+      },
+      update: serviceTranslationData(input, "AR", slugAr),
+    });
+    return row;
   },
 });

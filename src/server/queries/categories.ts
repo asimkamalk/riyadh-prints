@@ -144,6 +144,70 @@ export async function getCategoryTree(
   });
 }
 
+async function loadCategoryDetail(
+  where: { id?: string; slug?: string; kind?: CategoryKind },
+  locale: Locale,
+  drafts: boolean,
+): Promise<CategoryDetail | null> {
+  const statusFilter = drafts ? {} : published;
+  const row = await prisma.category.findFirst({
+    where: {
+      ...statusFilter,
+      ...(where.id ? { id: where.id } : {}),
+      ...(where.kind ? { kind: where.kind } : {}),
+      ...(where.slug
+        ? { OR: [{ slug: where.slug }, { translations: { some: { slug: where.slug } } }] }
+        : {}),
+    },
+    select: categorySelect(locale),
+  });
+  if (!row) {
+    return null;
+  }
+  const picked = pickTranslation(row.translations, locale);
+  const summary = toSummary(row, locale);
+  if (!picked || !summary) {
+    return null;
+  }
+
+  const ancestors: CategorySummary[] = [];
+  let parentId = row.parentId;
+  while (parentId) {
+    const parent = await prisma.category.findFirst({
+      where: { id: parentId, ...statusFilter },
+      select: categorySelect(locale),
+    });
+    if (!parent) {
+      break;
+    }
+    const parentSummary = toSummary(parent, locale);
+    if (parentSummary) {
+      ancestors.unshift(parentSummary);
+    }
+    parentId = parent.parentId;
+  }
+
+  const childrenRows = await prisma.category.findMany({
+    where: { parentId: row.id, ...statusFilter },
+    orderBy: { sortOrder: "asc" },
+    select: categorySelect(locale),
+  });
+
+  return {
+    ...summary,
+    shortDescription: picked.value.shortDescription,
+    longDescription: picked.value.longDescription,
+    heroHeading: picked.value.heroHeading,
+    heroSubheading: picked.value.heroSubheading,
+    image: mapMedia(row.image, locale),
+    ancestors,
+    children: childrenRows
+      .map((child) => toSummary(child, locale))
+      .filter((child): child is CategorySummary => child !== null),
+    seo: mapSeo(picked.value),
+  };
+}
+
 /**
  * Category landing `/product-category/[slug]` plus breadcrumb ancestors.
  * Cache tags: `category:{slug}`, `categories`.
@@ -156,60 +220,13 @@ export async function getCategoryBySlug(
   return cachedQuery({
     key: ["category-by-slug", slug, locale, kind],
     tags: [tags.category(slug), tags.categories()],
-    fn: async () => {
-      const row = await prisma.category.findFirst({
-        where: {
-          ...published,
-          kind,
-          OR: [{ slug }, { translations: { some: { slug } } }],
-        },
-        select: categorySelect(locale),
-      });
-      if (!row) {
-        return null;
-      }
-      const picked = pickTranslation(row.translations, locale);
-      const summary = toSummary(row, locale);
-      if (!picked || !summary) {
-        return null;
-      }
-
-      const ancestors: CategorySummary[] = [];
-      let parentId = row.parentId;
-      while (parentId) {
-        const parent = await prisma.category.findFirst({
-          where: { id: parentId, ...published },
-          select: categorySelect(locale),
-        });
-        if (!parent) {
-          break;
-        }
-        const parentSummary = toSummary(parent, locale);
-        if (parentSummary) {
-          ancestors.unshift(parentSummary);
-        }
-        parentId = parent.parentId;
-      }
-
-      const childrenRows = await prisma.category.findMany({
-        where: { parentId: row.id, ...published },
-        orderBy: { sortOrder: "asc" },
-        select: categorySelect(locale),
-      });
-
-      return {
-        ...summary,
-        shortDescription: picked.value.shortDescription,
-        longDescription: picked.value.longDescription,
-        heroHeading: picked.value.heroHeading,
-        heroSubheading: picked.value.heroSubheading,
-        image: mapMedia(row.image, locale),
-        ancestors,
-        children: childrenRows
-          .map((child) => toSummary(child, locale))
-          .filter((child): child is CategorySummary => child !== null),
-        seo: mapSeo(picked.value),
-      };
-    },
+    fn: () => loadCategoryDetail({ slug, kind }, locale, false),
   });
+}
+
+export async function getCategoryByIdUncached(
+  id: string,
+  locale: Locale,
+): Promise<CategoryDetail | null> {
+  return loadCategoryDetail({ id }, locale, true);
 }

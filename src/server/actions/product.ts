@@ -11,6 +11,12 @@ import {
   reorderSchema,
   translationCopySchema,
 } from "@/lib/validations/common";
+import { productSaveSchema } from "@/lib/validations/product";
+import { emptyToNull, parsePublishedAt } from "@/server/catalogue/seo-write";
+import {
+  productTranslationData,
+  syncProductNested,
+} from "@/server/catalogue/product-sync";
 import { prisma } from "@/server/db";
 
 import { CONTENT_ROLES, createAction } from "./_helpers";
@@ -268,12 +274,28 @@ export const duplicateProduct = createAction({
   handler: async ({ input }) => {
     const existing = await prisma.product.findUnique({
       where: { id: input.id },
-      include: { translations: true },
+      include: {
+        translations: true,
+        images: true,
+        priceTiers: true,
+        options: {
+          include: {
+            translations: true,
+            values: { include: { translations: true } },
+          },
+        },
+        relationsFrom: true,
+      },
     });
     if (!existing) {
       notFound("Product");
     }
     const slug = await generateUniqueSlug("product", "en", copySuffix(existing.slug));
+    const slugAr = await generateUniqueSlug(
+      "product",
+      "ar",
+      copySuffix(existing.translations.find((row) => row.locale === "AR")?.slug ?? slug),
+    );
     const en = existing.translations.find((row) => row.locale === "EN");
     const ar = existing.translations.find((row) => row.locale === "AR");
     return prisma.product.create({
@@ -291,20 +313,73 @@ export const duplicateProduct = createAction({
         basePrice: existing.basePrice,
         priceUnit: existing.priceUnit,
         translations: {
-          create: [
-            {
-              locale: "EN",
-              name: `${en?.name ?? existing.slug} (copy)`,
-              slug,
-              shortDescription: en?.shortDescription,
+          create: existing.translations.map((row) => ({
+            locale: row.locale,
+            name:
+              row.locale === "AR"
+                ? `${ar?.name ?? en?.name ?? existing.slug} (نسخة)`
+                : `${en?.name ?? existing.slug} (copy)`,
+            slug: row.locale === "AR" ? slugAr : slug,
+            shortDescription: row.shortDescription,
+            longDescription: row.longDescription ?? undefined,
+            specifications: row.specifications ?? undefined,
+            materials: row.materials ?? undefined,
+            useCases: row.useCases ?? undefined,
+            metaTitle: row.metaTitle,
+            metaDescription: row.metaDescription,
+            ogTitle: row.ogTitle,
+            ogDescription: row.ogDescription,
+            ogImageId: row.ogImageId,
+            canonicalUrl: row.canonicalUrl,
+            noIndex: row.noIndex,
+            noFollow: row.noFollow,
+            focusKeyword: row.focusKeyword,
+          })),
+        },
+        images: {
+          create: existing.images.map((image) => ({
+            mediaId: image.mediaId,
+            sortOrder: image.sortOrder,
+            isPrimary: image.isPrimary,
+          })),
+        },
+        priceTiers: {
+          create: existing.priceTiers.map((tier) => ({
+            minQty: tier.minQty,
+            maxQty: tier.maxQty,
+            unitPrice: tier.unitPrice,
+          })),
+        },
+        options: {
+          create: existing.options.map((option) => ({
+            key: option.key,
+            sortOrder: option.sortOrder,
+            translations: {
+              create: option.translations.map((row) => ({
+                locale: row.locale,
+                label: row.label,
+              })),
             },
-            {
-              locale: "AR",
-              name: `${ar?.name ?? en?.name ?? existing.slug} (نسخة)`,
-              slug: await generateUniqueSlug("product", "ar", copySuffix(ar?.slug ?? slug)),
-              shortDescription: ar?.shortDescription,
+            values: {
+              create: option.values.map((value) => ({
+                value: value.value,
+                priceModifier: value.priceModifier,
+                sortOrder: value.sortOrder,
+                translations: {
+                  create: value.translations.map((row) => ({
+                    locale: row.locale,
+                    label: row.label,
+                  })),
+                },
+              })),
             },
-          ],
+          })),
+        },
+        relationsFrom: {
+          create: existing.relationsFrom.map((rel) => ({
+            relatedProductId: rel.relatedProductId,
+            sortOrder: rel.sortOrder,
+          })),
         },
       },
       select: { id: true, slug: true, status: true },
@@ -396,3 +471,143 @@ export const bulkDeleteProducts = createAction({
     return { count: result.count };
   },
 });
+
+export const toggleProductFeatured = createAction({
+  input: idSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => productTags(r.slug),
+  audit: {
+    action: "product.toggleFeatured",
+    entityType: "product",
+    entityId: (i) => i.id,
+  },
+  handler: async ({ input }) => {
+    const existing = await prisma.product.findUnique({
+      where: { id: input.id },
+      select: { id: true, slug: true, isFeatured: true },
+    });
+    if (!existing) {
+      notFound("Product");
+    }
+    return prisma.product.update({
+      where: { id: existing.id },
+      data: { isFeatured: !existing.isFeatured },
+      select: { id: true, slug: true, isFeatured: true },
+    });
+  },
+});
+
+export const saveProduct = createAction({
+  input: productSaveSchema,
+  roles: CONTENT_ROLES,
+  revalidate: (_i, r) => productTags(r.slug),
+  audit: {
+    action: "product.save",
+    entityType: "product",
+    entityId: (_i, r) => r.id,
+  },
+  handler: async ({ input }) => {
+    const slug = await generateUniqueSlug(
+      "product",
+      "en",
+      input.slugEn || input.nameEn,
+      input.id,
+    );
+    const slugAr = await generateUniqueSlug(
+      "product",
+      "ar",
+      input.slugAr || input.nameAr || input.nameEn,
+      input.id,
+    );
+    const status = input.status ?? "DRAFT";
+    const publishedAt =
+      parsePublishedAt(input.publishedAt) ?? (status === "PUBLISHED" ? new Date() : null);
+    const core = {
+      slug,
+      sku: emptyToNull(input.sku),
+      categoryId: input.categoryId === undefined ? undefined : input.categoryId,
+      status,
+      isFeatured: input.isFeatured ?? false,
+      isNew: input.isNew ?? false,
+      includesDesign: input.includesDesign ?? false,
+      sameDayAvailable: input.sameDayAvailable ?? false,
+      minOrderQty: input.minOrderQty === undefined ? undefined : input.minOrderQty,
+      turnaroundDays: input.turnaroundDays === undefined ? undefined : input.turnaroundDays,
+      basePrice: emptyToNull(input.basePrice),
+      priceUnit: emptyToNull(input.priceUnit),
+      publishedAt,
+    };
+
+    if (!input.id) {
+      const created = await prisma.product.create({
+        data: {
+          ...core,
+          translations: {
+            create: [
+              { locale: "EN", ...productTranslationData(input, "EN", slug) },
+              { locale: "AR", ...productTranslationData(input, "AR", slugAr) },
+            ],
+          },
+        },
+        select: { id: true, slug: true, status: true },
+      });
+      await syncProductNested(created.id, input);
+      return created;
+    }
+
+    const existing = await prisma.product.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        slug: true,
+        status: true,
+        translations: { select: { locale: true, slug: true } },
+      },
+    });
+    if (!existing) {
+      notFound("Product");
+    }
+    const published = status === "PUBLISHED";
+    if (slug !== existing.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "product",
+        oldSlug: existing.slug,
+        newSlug: slug,
+        locale: "en",
+      });
+    }
+    const ar = existing.translations.find((row) => row.locale === "AR");
+    if (ar && slugAr !== ar.slug) {
+      await redirectOnPublishedSlugChange({
+        published,
+        entityType: "product",
+        oldSlug: ar.slug,
+        newSlug: slugAr,
+        locale: "ar",
+      });
+    }
+    const row = await prisma.product.update({
+      where: { id: existing.id },
+      data: core,
+      select: { id: true, slug: true, status: true },
+    });
+    await prisma.productTranslation.upsert({
+      where: { productId_locale: { productId: existing.id, locale: "EN" } },
+      create: { productId: existing.id, locale: "EN", ...productTranslationData(input, "EN", slug) },
+      update: productTranslationData(input, "EN", slug),
+    });
+    await prisma.productTranslation.upsert({
+      where: { productId_locale: { productId: existing.id, locale: "AR" } },
+      create: {
+        productId: existing.id,
+        locale: "AR",
+        ...productTranslationData(input, "AR", slugAr),
+      },
+      update: productTranslationData(input, "AR", slugAr),
+    });
+    await syncProductNested(existing.id, input);
+    return row;
+  },
+});
+

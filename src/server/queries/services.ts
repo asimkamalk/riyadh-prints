@@ -110,6 +110,75 @@ export async function getAllServices(
  * Service landing `/services/[slug]`.
  * Cache tags: `service:{slug}`, `services`.
  */
+function serviceDetailSelect(locale: Locale) {
+  return {
+    ...serviceCardSelect(locale),
+    heroImage: { select: mediaSelect(locale) },
+    translations: {
+      where: { locale: { in: translationLocales(locale) } },
+      select: {
+        locale: true,
+        name: true,
+        slug: true,
+        shortDescription: true,
+        longDescription: true,
+        benefits: true,
+        processSteps: true,
+        heroHeading: true,
+        heroSubheading: true,
+        ctaLabel: true,
+        ...seoSelect,
+      },
+    },
+  };
+}
+
+function mapServiceDetail(
+  row: {
+    heroImage: Parameters<typeof mapMedia>[0];
+    translations: {
+      locale: "EN" | "AR";
+      name: string;
+      slug: string;
+      shortDescription: string | null;
+      longDescription: unknown;
+      benefits: unknown;
+      processSteps: unknown;
+      heroHeading: string | null;
+      heroSubheading: string | null;
+      ctaLabel: string | null;
+      metaTitle: string | null;
+      metaDescription: string | null;
+      ogTitle: string | null;
+      ogDescription: string | null;
+      ogImageId: string | null;
+      canonicalUrl: string | null;
+      noIndex: boolean;
+      noFollow: boolean;
+      jsonLdOverride: unknown;
+      focusKeyword: string | null;
+    }[];
+  } & ServiceCardRow,
+  locale: Locale,
+): ServiceDetail | null {
+  const card = mapServiceCard(row, locale);
+  const picked = pickTranslation(row.translations, locale);
+  if (!card || !picked) {
+    return null;
+  }
+  return {
+    ...card,
+    longDescription: toJson(picked.value.longDescription),
+    benefits: toJson(picked.value.benefits),
+    processSteps: toJson(picked.value.processSteps),
+    heroHeading: picked.value.heroHeading,
+    heroSubheading: picked.value.heroSubheading,
+    ctaLabel: picked.value.ctaLabel,
+    heroImage: mapMedia(row.heroImage, locale),
+    seo: mapSeo(picked.value),
+  };
+}
+
 export async function getServiceBySlug(
   slug: string,
   locale: Locale,
@@ -123,48 +192,28 @@ export async function getServiceBySlug(
           ...published,
           OR: [{ slug }, { translations: { some: { slug } } }],
         },
-        select: {
-          ...serviceCardSelect(locale),
-          heroImage: { select: mediaSelect(locale) },
-          translations: {
-            where: { locale: { in: translationLocales(locale) } },
-            select: {
-              locale: true,
-              name: true,
-              slug: true,
-              shortDescription: true,
-              longDescription: true,
-              benefits: true,
-              processSteps: true,
-              heroHeading: true,
-              heroSubheading: true,
-              ctaLabel: true,
-              ...seoSelect,
-            },
-          },
-        },
+        select: serviceDetailSelect(locale),
       });
       if (!row) {
         return null;
       }
-      const card = mapServiceCard(row, locale);
-      const picked = pickTranslation(row.translations, locale);
-      if (!card || !picked) {
-        return null;
-      }
-      return {
-        ...card,
-        longDescription: toJson(picked.value.longDescription),
-        benefits: toJson(picked.value.benefits),
-        processSteps: toJson(picked.value.processSteps),
-        heroHeading: picked.value.heroHeading,
-        heroSubheading: picked.value.heroSubheading,
-        ctaLabel: picked.value.ctaLabel,
-        heroImage: mapMedia(row.heroImage, locale),
-        seo: mapSeo(picked.value),
-      };
+      return mapServiceDetail(row, locale);
     },
   });
+}
+
+export async function getServiceByIdUncached(
+  id: string,
+  locale: Locale,
+): Promise<ServiceDetail | null> {
+  const row = await prisma.service.findFirst({
+    where: { id },
+    select: serviceDetailSelect(locale),
+  });
+  if (!row) {
+    return null;
+  }
+  return mapServiceDetail(row, locale);
 }
 
 /**

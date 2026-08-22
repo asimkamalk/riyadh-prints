@@ -66,7 +66,7 @@ type MediaRow = {
   }[];
 };
 
-const mediaSelect = {
+export const adminMediaSelect = {
   id: true,
   url: true,
   pathname: true,
@@ -173,7 +173,7 @@ export function listAdminMediaPage(
         orderBy: { createdAt: "desc" },
         skip: pageInfo.skip,
         take: pageInfo.perPage,
-        select: mediaSelect,
+        select: adminMediaSelect,
       });
       return {
         items: rows.map(mapAdminMedia),
@@ -210,7 +210,7 @@ export function listMediaFolders(): Promise<string[]> {
 export async function getAdminMedia(id: string): Promise<AdminMediaRecord | null> {
   const row = await prisma.media.findUnique({
     where: { id },
-    select: mediaSelect,
+    select: adminMediaSelect,
   });
   return row ? mapAdminMedia(row) : null;
 }

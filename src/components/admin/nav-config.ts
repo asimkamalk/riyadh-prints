@@ -6,7 +6,6 @@ import {
   ClipboardList,
   ImageIcon,
   LayoutDashboard,
-  LayoutTemplate,
   Library,
   LineChart,
   ListTree,
@@ -83,12 +82,11 @@ export const adminNav: readonly AdminNavGroup[] = [
     id: "content",
     label: "Content",
     items: [
-      { href: "/admin/pages", label: "Pages", icon: FileText, keywords: "cms" },
       {
-        href: "/admin/pages/builder",
-        label: "Page Builder",
-        icon: LayoutTemplate,
-        keywords: "sections blocks",
+        href: "/admin/pages",
+        label: "Pages",
+        icon: FileText,
+        keywords: "cms builder sections",
       },
       {
         href: "/admin/services",

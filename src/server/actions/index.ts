@@ -22,6 +22,8 @@ export {
   deleteProduct,
   duplicateProduct,
   reorderProducts,
+  saveProduct,
+  toggleProductFeatured,
   toggleProductStatus,
   updateProduct,
 } from "./product";
@@ -31,7 +33,10 @@ export {
   createCategory,
   deleteCategory,
   duplicateCategory,
+  moveCategory,
   reorderCategories,
+  saveCategory,
+  toggleCategoryFeatured,
   toggleCategoryStatus,
   updateCategory,
 } from "./category";
@@ -42,6 +47,8 @@ export {
   deleteService,
   duplicateService,
   reorderServices,
+  saveService,
+  toggleServiceFeatured,
   toggleServiceStatus,
   updateService,
 } from "./service";
@@ -52,6 +59,7 @@ export {
   deletePage,
   duplicatePage,
   reorderPages,
+  savePage,
   togglePageStatus,
   updatePage,
 } from "./page";
@@ -189,6 +197,7 @@ export {
 } from "./inquiry";
 export { signInWithPassword } from "./auth";
 export { signOutAdmin } from "./session";
+export { createPreviewUrl } from "./preview";
 export {
   checkSlug,
   listAdminMediaFolders,
