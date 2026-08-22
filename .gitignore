@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# WordPress migration dumps (regenerate with node migration/extract-wp.mjs)
+/migration/data/
+/migration/media/
