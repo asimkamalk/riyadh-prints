@@ -45,10 +45,11 @@ describe("negotiateLocale", () => {
 });
 
 describe("resolveLocale", () => {
-  it("lets the pathname win over cookie and headers", () => {
-    expect(resolveLocale("/ar/shop", "en", "en")).toBe("ar");
-    expect(resolveLocale("/about", "ar", "en")).toBe("ar");
-    expect(resolveLocale("/about", undefined, "en-GB")).toBe("en");
+  it("treats unprefixed URLs as English and /ar as Arabic", () => {
+    expect(resolveLocale("/ar/shop")).toBe("ar");
+    expect(resolveLocale("/ar")).toBe("ar");
+    expect(resolveLocale("/about")).toBe("en");
+    expect(resolveLocale("/")).toBe("en");
   });
 });
 

@@ -55,7 +55,7 @@ export default async function DesignSystemPage({ params }: DesignSystemPageProps
   const path = localePath(rawLocale, "/design-system");
 
   return (
-    <main className="container-page py-xl">
+    <div className="container-page py-xl">
       <Breadcrumbs
         items={[
           { href: withLocalePath(rawLocale, "/"), label: "Home" },
@@ -110,6 +110,6 @@ export default async function DesignSystemPage({ params }: DesignSystemPageProps
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

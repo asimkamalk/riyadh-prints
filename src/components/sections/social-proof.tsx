@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { StatCounter } from "@/components/site/stat-counter";
+import { TestimonialCard } from "@/components/site/testimonial-card";
 import { Button } from "@/components/ui/button";
 import { SectionIntro, SectionShell, dataString } from "@/components/sections/shell";
 import { asString } from "@/lib/sections/parse";
@@ -14,11 +16,7 @@ export function StatsRenderer({ data, settings, headingLevel, resolved }: Sectio
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {resolved.stats.map((stat) => (
           <li key={stat.id} className="rounded-xl border p-5">
-            <p className="text-3xl font-semibold">
-              {stat.prefix}
-              {stat.value}
-              {stat.suffix}
-            </p>
+            <StatCounter prefix={stat.prefix} value={stat.value} suffix={stat.suffix} />
             <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
           </li>
         ))}
@@ -58,14 +56,8 @@ export function TestimonialsRenderer({ data, settings, headingLevel, resolved }:
       <SectionIntro heading={dataString(data, "heading")} headingLevel={headingLevel} />
       <ul className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {resolved.testimonials.map((item) => (
-          <li key={item.id} className="grid gap-3 rounded-xl border p-5">
-            <blockquote className="text-sm">{item.quote}</blockquote>
-            <p className="text-sm font-medium">{item.authorName}</p>
-            {item.authorRole || item.company ? (
-              <p className="text-xs text-muted-foreground">
-                {[item.authorRole, item.company].filter(Boolean).join(" · ")}
-              </p>
-            ) : null}
+          <li key={item.id}>
+            <TestimonialCard testimonial={item} />
           </li>
         ))}
       </ul>

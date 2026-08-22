@@ -18,6 +18,7 @@ export const submitInquirySchema = z.object({
   honeypot: z.string().max(200).optional(),
   /** Client clock when the form was rendered (unix ms). */
   formStartedAt: z.number().int().positive(),
+  fileUrls: z.array(z.url()).max(5).optional(),
 });
 
 export const updateInquirySchema = z.object({

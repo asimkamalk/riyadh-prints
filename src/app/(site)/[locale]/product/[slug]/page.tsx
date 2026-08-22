@@ -74,7 +74,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   ];
 
   return (
-    <main className="container-page py-xl">
+    <article className="container-page py-xl">
       {isPreview ? <DraftPreviewBanner /> : null}
       <Breadcrumbs items={crumbs} />
       <JsonLd data={productJsonLd(entity)} />
@@ -124,6 +124,6 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           ) : null}
         </div>
       </div>
-    </main>
+    </article>
   );
 }

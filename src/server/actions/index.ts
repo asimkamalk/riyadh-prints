@@ -194,10 +194,13 @@ export {
   submitInquiry,
   toggleInquiryStatus,
   updateInquiry,
+  uploadInquiryAttachment,
 } from "./inquiry";
 export { signInWithPassword } from "./auth";
 export { signOutAdmin } from "./session";
 export { createPreviewUrl } from "./preview";
+export { subscribeNewsletter } from "./newsletter";
+export { searchSite } from "./search";
 export {
   checkSlug,
   listAdminMediaFolders,

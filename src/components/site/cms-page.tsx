@@ -34,16 +34,11 @@ export function CmsPageView({
   const body = tiptapToPlainText(page.content);
 
   return (
-    <main>
-      {isPreview ? (
-        <div className="container-page pt-6">
-          <DraftPreviewBanner />
-        </div>
-      ) : null}
+    <article>
       <div className="container-page pt-6">
+        {isPreview ? <DraftPreviewBanner /> : null}
         <Breadcrumbs items={crumbs} />
       </div>
-      <JsonLd data={pageJsonLd(page)} />
       {!hasHero ? (
         <div className="container-page pb-8">
           <h1 className="text-4xl font-semibold tracking-tight">{page.title}</h1>
@@ -65,6 +60,7 @@ export function CmsPageView({
           ))}
         </div>
       ) : null}
-    </main>
+      <JsonLd data={pageJsonLd(page)} />
+    </article>
   );
 }

@@ -5,9 +5,7 @@ import {
   isAdminPath,
   localeFromPathname,
   LOCALE_COOKIE,
-  resolveLocale,
   stripLocalePrefix,
-  withLocalePath,
   type Locale,
 } from "@/i18n/routing";
 import {
@@ -29,14 +27,16 @@ function withLocaleCookie(response: NextResponse, locale: Locale): NextResponse 
   return response;
 }
 
+function nextWithPath(request: NextRequest, pathname: string, locale: Locale): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  requestHeaders.set("x-locale", locale);
+  return withLocaleCookie(NextResponse.next({ request: { headers: requestHeaders } }), locale);
+}
+
 function handleLocale(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const pathLocale = localeFromPathname(pathname);
-  const locale = resolveLocale(
-    pathname,
-    request.cookies.get(LOCALE_COOKIE)?.value,
-    request.headers.get("accept-language"),
-  );
   const stripped = stripLocalePrefix(pathname);
 
   if (isAdminPath(pathname)) {
@@ -45,7 +45,7 @@ function handleLocale(request: NextRequest): NextResponse {
       url.pathname = stripped;
       return NextResponse.redirect(url);
     }
-    return withLocaleCookie(NextResponse.next(), locale);
+    return NextResponse.next();
   }
 
   if (pathLocale === "en") {
@@ -54,19 +54,19 @@ function handleLocale(request: NextRequest): NextResponse {
     return withLocaleCookie(NextResponse.redirect(url), "en");
   }
 
-  if (!pathLocale && locale === "ar") {
-    const url = request.nextUrl.clone();
-    url.pathname = withLocalePath("ar", stripped);
-    return withLocaleCookie(NextResponse.redirect(url), "ar");
-  }
-
   if (pathLocale === "ar") {
-    return withLocaleCookie(NextResponse.next(), "ar");
+    return nextWithPath(request, pathname, "ar");
   }
 
   const rewriteUrl = request.nextUrl.clone();
   rewriteUrl.pathname = `/en${stripped === "/" ? "" : stripped}`;
-  return withLocaleCookie(NextResponse.rewrite(rewriteUrl), "en");
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  requestHeaders.set("x-locale", "en");
+  return withLocaleCookie(
+    NextResponse.rewrite(rewriteUrl, { request: { headers: requestHeaders } }),
+    "en",
+  );
 }
 
 export default auth(async (request) => {

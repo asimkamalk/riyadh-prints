@@ -69,12 +69,9 @@ export function negotiateLocale(
   return DEFAULT_LOCALE;
 }
 
-export function resolveLocale(
-  pathname: string,
-  cookie: string | undefined,
-  acceptLanguage: string | null,
-): Locale {
-  return localeFromPathname(pathname) ?? negotiateLocale(cookie, acceptLanguage);
+/** Pathname is the source of truth: `/ar` is Arabic, everything unprefixed is English. */
+export function resolveLocale(pathname: string): Locale {
+  return localeFromPathname(pathname) ?? DEFAULT_LOCALE;
 }
 
 export function isAdminPath(pathname: string): boolean {

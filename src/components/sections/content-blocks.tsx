@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { LazyGallery } from "@/components/site/lazy-gallery";
 import { Button } from "@/components/ui/button";
 import { SectionHeading, SectionIntro, SectionShell, dataString } from "@/components/sections/shell";
 import { TiptapBody } from "@/components/sections/tiptap-body";
@@ -118,31 +119,28 @@ export function PricingTableRenderer({ data, settings, headingLevel }: SectionRe
   );
 }
 
-export function GalleryRenderer({ data, settings, headingLevel, resolved }: SectionRenderProps) {
+export function GalleryRenderer({ data, settings, headingLevel, resolved, locale }: SectionRenderProps) {
   const items = Array.isArray(data.items) ? data.items : [];
+  const slides = items.flatMap((raw, index) => {
+    const item = asRecord(raw);
+    const media = resolved.mediaById[asString(item.mediaId)];
+    if (!media) {
+      return [];
+    }
+    return [
+      {
+        src: media.url,
+        alt: asString(item.alt) || media.alt || `Gallery image ${index + 1}`,
+        width: media.width ?? 1200,
+        height: media.height ?? 900,
+        blurDataUrl: media.blurDataUrl,
+      },
+    ];
+  });
   return (
     <SectionShell settings={settings}>
       <SectionIntro heading={dataString(data, "heading")} headingLevel={headingLevel} />
-      <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {items.map((raw, index) => {
-          const item = asRecord(raw);
-          const media = resolved.mediaById[asString(item.mediaId)];
-          if (!media) {
-            return null;
-          }
-          return (
-            <li key={media.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-              <Image
-                src={media.url}
-                alt={asString(item.alt) || media.alt || `Gallery image ${index + 1}`}
-                fill
-                className="object-cover"
-                sizes="(min-width: 768px) 25vw, 50vw"
-              />
-            </li>
-          );
-        })}
-      </ul>
+      {slides.length ? <LazyGallery items={slides} locale={locale} /> : null}
     </SectionShell>
   );
 }

@@ -241,6 +241,20 @@
     scroll-behavior: smooth;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-size: var(--type-body);
@@ -374,5 +388,23 @@
     background: var(--muted);
     padding: 0.15em 0.4em;
     border-radius: var(--radius-sm);
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+    .reveal {
+      opacity: 0;
+      transform: translateY(0.6rem);
+      transition: opacity 400ms ease, transform 400ms ease;
+    }
+
+    .reveal.reveal-in {
+      opacity: 1;
+      transform: none;
+    }
   }
 }

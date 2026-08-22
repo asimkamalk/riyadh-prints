@@ -1,7 +1,7 @@
 import { asString } from "@/lib/sections/parse";
 import { layoutClassName } from "@/lib/sections/layout";
+import { Reveal } from "@/components/site/reveal";
 import { cn } from "@/lib/utils";
-import type { SectionRenderProps } from "@/lib/sections/types";
 
 export function SectionShell({
   settings,
@@ -15,7 +15,7 @@ export function SectionShell({
   const classes = layoutClassName(settings);
   return (
     <section className={cn(classes.section, className)}>
-      <div className={classes.inner}>{children}</div>
+      <Reveal className={classes.inner}>{children}</Reveal>
     </section>
   );
 }

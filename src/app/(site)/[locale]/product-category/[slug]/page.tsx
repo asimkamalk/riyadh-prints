@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CategoryCard } from "@/components/site/category-card";
 import { DraftPreviewBanner, firstSearchParam } from "@/components/site/draft-preview-banner";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -62,7 +62,7 @@ export default async function ProductCategoryPage({ params, searchParams }: Page
   ];
 
   return (
-    <main className="container-page py-xl">
+    <article className="container-page py-xl">
       {isPreview ? <DraftPreviewBanner /> : null}
       <Breadcrumbs items={crumbs} />
       <JsonLd data={categoryJsonLd(entity)} />
@@ -89,16 +89,14 @@ export default async function ProductCategoryPage({ params, searchParams }: Page
       ) : null}
       {entity.longDescription ? <p className="mt-4">{entity.longDescription}</p> : null}
       {entity.children.length ? (
-        <ul className="mt-8 grid gap-2">
+        <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {entity.children.map((child) => (
             <li key={child.id}>
-              <Link href={child.href as never} className="hover:underline">
-                {child.name}
-              </Link>
+              <CategoryCard category={child} />
             </li>
           ))}
         </ul>
       ) : null}
-    </main>
+    </article>
   );
 }

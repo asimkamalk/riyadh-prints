@@ -1,6 +1,6 @@
-import Image from "next/image";
-import Link from "next/link";
-
+import { CategoryCard } from "@/components/site/category-card";
+import { ProductCard } from "@/components/site/product-card";
+import { ServiceCard } from "@/components/site/service-card";
 import { SectionIntro, SectionShell, dataString } from "@/components/sections/shell";
 import { gridColumnsClass } from "@/lib/sections/layout";
 import { asNumber, asRecord, asString } from "@/lib/sections/parse";
@@ -26,7 +26,7 @@ export function UspGridRenderer({ data, settings, headingLevel }: SectionRenderP
   );
 }
 
-export function ServiceGridRenderer({ data, settings, headingLevel, resolved }: SectionRenderProps) {
+export function ServiceGridRenderer({ data, settings, headingLevel, resolved, locale }: SectionRenderProps) {
   const limit = asNumber(settings.limit, 6);
   const featuredOnly = settings.featuredOnly !== false;
   const services = resolved.services
@@ -42,12 +42,7 @@ export function ServiceGridRenderer({ data, settings, headingLevel, resolved }: 
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {services.map((service) => (
           <li key={service.id}>
-            <Link href={service.href as never} className="block rounded-xl border p-5 hover:bg-muted/40">
-              <p className="font-medium">{service.name}</p>
-              {service.shortDescription ? (
-                <p className="mt-2 text-sm text-muted-foreground">{service.shortDescription}</p>
-              ) : null}
-            </Link>
+            <ServiceCard service={service} locale={locale} />
           </li>
         ))}
       </ul>
@@ -68,12 +63,7 @@ export function CategoryGridRenderer({ data, settings, headingLevel, resolved }:
       <ul className={`grid gap-4 ${gridColumnsClass({ columns: 5 }, 5)}`}>
         {categories.map((category) => (
           <li key={category.id}>
-            <Link
-              href={category.href as never}
-              className="flex min-h-24 items-center justify-center rounded-xl border px-3 py-4 text-center text-sm font-medium hover:bg-muted/40"
-            >
-              {category.name}
-            </Link>
+            <CategoryCard category={category} />
           </li>
         ))}
       </ul>
@@ -81,7 +71,7 @@ export function CategoryGridRenderer({ data, settings, headingLevel, resolved }:
   );
 }
 
-export function FeaturedProductsRenderer({ data, settings, headingLevel, resolved }: SectionRenderProps) {
+export function FeaturedProductsRenderer({ data, settings, headingLevel, resolved, locale }: SectionRenderProps) {
   const limit = asNumber(settings.limit, 8);
   const products = resolved.products.slice(0, limit);
   return (
@@ -93,26 +83,8 @@ export function FeaturedProductsRenderer({ data, settings, headingLevel, resolve
       />
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {products.map((product) => (
-          <li key={product.id} className="overflow-hidden rounded-xl border">
-            <Link href={product.href as never} className="block">
-              <div className="relative aspect-square bg-muted">
-                {product.primaryImage ? (
-                  <Image
-                    src={product.primaryImage.url}
-                    alt={product.primaryImage.alt || product.name}
-                    fill
-                    className="object-cover"
-                    sizes="(min-width: 1024px) 25vw, 50vw"
-                  />
-                ) : null}
-              </div>
-              <div className="grid gap-1 p-4">
-                <p className="font-medium">{product.name}</p>
-                {product.basePrice ? (
-                  <p className="text-sm text-muted-foreground">From {product.basePrice} SAR</p>
-                ) : null}
-              </div>
-            </Link>
+          <li key={product.id}>
+            <ProductCard product={product} locale={locale} />
           </li>
         ))}
       </ul>

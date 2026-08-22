@@ -22,6 +22,7 @@ export {
 export { getFaqsFor } from "./faqs";
 export { getMenu } from "./menus";
 export { getPartners, getSiteSettings, getStats } from "./settings";
+export { getAlternateLocaleHref, getPublicPathname, otherLocale } from "./locale-href";
 export { getPublishedTestimonials } from "./testimonials";
 export {
   getProjectBySlug,

@@ -66,7 +66,7 @@ export default async function ServicePage({ params, searchParams }: PageProps) {
   ];
 
   return (
-    <main className="container-page py-xl">
+    <article className="container-page py-xl">
       {isPreview ? <DraftPreviewBanner /> : null}
       <Breadcrumbs items={crumbs} />
       <JsonLd data={serviceJsonLd(entity)} />
@@ -121,6 +121,6 @@ export default async function ServicePage({ params, searchParams }: PageProps) {
           ))}
         </ol>
       ) : null}
-    </main>
+    </article>
   );
 }

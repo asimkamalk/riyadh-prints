@@ -248,6 +248,7 @@ export type MenuItemDto = LocaleServeMeta & {
   iconName: string | null;
   isMegaMenu: boolean;
   highlight: boolean;
+  image: MediaDto | null;
   children: MenuItemDto[];
 };
 

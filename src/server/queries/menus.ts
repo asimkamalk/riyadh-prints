@@ -8,6 +8,8 @@ import {
   cachedQuery,
   categoryHref,
   localizeHref,
+  mapMedia,
+  mediaSelect,
   pageHref,
   pickTranslation,
   postHref,
@@ -218,7 +220,6 @@ export async function getMenu(
         },
       });
 
-      const dtos: MenuItemDto[] = [];
       const byId = new Map<string, MenuItemDto>();
 
       for (const row of rows) {
@@ -235,14 +236,15 @@ export async function getMenu(
           iconName: row.iconName,
           isMegaMenu: row.isMegaMenu,
           highlight: row.highlight,
+          image: null,
           children: [],
           servedLocale: picked.servedLocale,
           isFallback: picked.isFallback,
         };
         byId.set(row.id, item);
-        dtos.push(item);
       }
 
+      await decorateMenuMedia(rows, byId, locale);
       const roots: MenuItemDto[] = [];
       for (const row of rows) {
         const item = byId.get(row.id);
@@ -259,3 +261,87 @@ export async function getMenu(
     },
   });
 }
+
+async function decorateMenuMedia(
+  rows: MenuRow[],
+  byId: Map<string, MenuItemDto>,
+  locale: Locale,
+) {
+  const categoryIds = rows
+    .filter((row): row is MenuRow & { targetId: string } =>
+      row.linkType === "CATEGORY" && Boolean(row.targetId),
+    )
+    .map((row) => row.targetId);
+  const serviceIds = rows
+    .filter((row): row is MenuRow & { targetId: string } =>
+      row.linkType === "SERVICE" && Boolean(row.targetId),
+    )
+    .map((row) => row.targetId);
+  if (categoryIds.length === 0 && serviceIds.length === 0) {
+    return;
+  }
+
+  const [categories, services] = await Promise.all([
+    categoryIds.length
+      ? prisma.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: {
+            id: true,
+            image: { select: mediaSelect(locale) },
+            translations: {
+              where: { locale: { in: translationLocales(locale) } },
+              select: { locale: true, shortDescription: true },
+            },
+          },
+        })
+      : [],
+    serviceIds.length
+      ? prisma.service.findMany({
+          where: { id: { in: serviceIds } },
+          select: {
+            id: true,
+            image: { select: mediaSelect(locale) },
+            translations: {
+              where: { locale: { in: translationLocales(locale) } },
+              select: { locale: true, shortDescription: true },
+            },
+          },
+        })
+      : [],
+  ]);
+
+  const extras = new Map<
+    string,
+    { image: MenuItemDto["image"]; description: string | null }
+  >();
+  for (const row of categories) {
+    const picked = pickTranslation(row.translations, locale);
+    extras.set(row.id, {
+      image: mapMedia(row.image, locale),
+      description: picked?.value.shortDescription ?? null,
+    });
+  }
+  for (const row of services) {
+    const picked = pickTranslation(row.translations, locale);
+    extras.set(row.id, {
+      image: mapMedia(row.image, locale),
+      description: picked?.value.shortDescription ?? null,
+    });
+  }
+
+  for (const row of rows) {
+    if (!row.targetId) {
+      continue;
+    }
+    const extra = extras.get(row.targetId);
+    const item = byId.get(row.id);
+    if (!extra || !item) {
+      continue;
+    }
+    item.image = extra.image;
+    if (!item.description) {
+      item.description = extra.description;
+    }
+  }
+}
+

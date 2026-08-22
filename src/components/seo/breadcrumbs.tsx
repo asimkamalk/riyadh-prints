@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -30,26 +32,26 @@ export function Breadcrumbs({ items }: { items: readonly Crumb[] }) {
 
   return (
     <div className="mb-8">
-      <JsonLd data={jsonLd} />
       <Breadcrumb>
         <BreadcrumbList>
           {items.map((item, index) => {
             const isLast = index === items.length - 1;
             return (
-              <BreadcrumbItem key={`${item.label}-${index}`}>
-                {index > 0 ? (
-                  <BreadcrumbSeparator className="rtl:rotate-180" />
-                ) : null}
-                {isLast || !item.href ? (
-                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
-                )}
-              </BreadcrumbItem>
+              <Fragment key={`${item.label}-${index}`}>
+                {index > 0 ? <BreadcrumbSeparator className="rtl:rotate-180" /> : null}
+                <BreadcrumbItem>
+                  {isLast || !item.href ? (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+              </Fragment>
             );
           })}
         </BreadcrumbList>
       </Breadcrumb>
+      <JsonLd data={jsonLd} />
     </div>
   );
 }

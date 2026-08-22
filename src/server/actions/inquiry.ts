@@ -12,9 +12,17 @@ import {
 } from "@/lib/validations/common";
 import { submitInquirySchema, updateInquirySchema } from "@/lib/validations/inquiry";
 import { prisma } from "@/server/db";
+import { putMediaBlob } from "@/server/media/blob";
 import { toPrismaLocale } from "@/server/queries/_shared";
 
-import { ActionError, CONTENT_ROLES, createAction } from "./_helpers";
+import {
+  ActionError,
+  CONTENT_ROLES,
+  createAction,
+  enforceRateLimit,
+  getRequestMeta,
+  type ActionResult,
+} from "./_helpers";
 import { notFound } from "./_resource";
 
 const MIN_FORM_MS = 2_000;
@@ -39,6 +47,55 @@ function isHoneypot(website?: string, honeypot?: string): boolean {
 
 function silentInquiryResult() {
   return { id: "ignored", status: "NEW" as const };
+}
+
+const INQUIRY_FILE_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+const MAX_INQUIRY_FILE_BYTES = 8 * 1024 * 1024;
+
+function isAllowedFileUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host.endsWith(".blob.vercel-storage.com") || host === "blob.vercel-storage.com";
+  } catch {
+    return false;
+  }
+}
+
+export async function uploadInquiryAttachment(
+  formData: FormData,
+): Promise<ActionResult<{ url: string }>> {
+  try {
+    const { ipHash } = await getRequestMeta();
+    enforceRateLimit(`inquiry.upload:${ipHash}`, 15 * 60 * 1000, 10);
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return { ok: false, error: "Invalid input." };
+    }
+    const contentType = file.type === "image/jpg" ? "image/jpeg" : file.type;
+    if (!INQUIRY_FILE_TYPES.has(contentType)) {
+      return { ok: false, error: "That file type is not allowed." };
+    }
+    if (file.size <= 0 || file.size > MAX_INQUIRY_FILE_BYTES) {
+      return { ok: false, error: "File is too large." };
+    }
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "file";
+    const blob = await putMediaBlob({
+      pathname: `inquiries/${crypto.randomUUID()}-${safeName}`,
+      body: Buffer.from(await file.arrayBuffer()),
+      contentType,
+    });
+    return { ok: true, data: { url: blob.url } };
+  } catch (error) {
+    if (error instanceof ActionError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Something went wrong." };
+  }
 }
 
 async function resolveRelatedIds(productId?: string, serviceId?: string) {
@@ -127,6 +184,7 @@ async function sendInquiryEmails(args: {
 export const submitInquiry = createAction({
   input: submitInquirySchema,
   roles: "public",
+  touchSitemap: false,
   rateLimit: { windowMs: 15 * 60 * 1000, max: 5 },
   revalidate: () => [],
   audit: {
@@ -147,6 +205,7 @@ export const submitInquiry = createAction({
     }
 
     const related = await resolveRelatedIds(input.productId, input.serviceId);
+    const fileUrls = (input.fileUrls ?? []).filter(isAllowedFileUrl);
     const row = await prisma.inquiry.create({
       data: {
         name: input.name,
@@ -158,6 +217,7 @@ export const submitInquiry = createAction({
         serviceId: related.serviceId,
         quantity: input.quantity,
         message: input.message,
+        fileUrls,
         locale: toPrismaLocale(input.locale),
         ipHash,
         userAgent,
@@ -200,6 +260,7 @@ export const createInquiry = createAction({
         serviceId: related.serviceId,
         quantity: input.quantity,
         message: input.message,
+        fileUrls: (input.fileUrls ?? []).filter(isAllowedFileUrl),
         locale: toPrismaLocale(input.locale),
         adminNotes: input.adminNotes,
         source: input.source ?? "dashboard",

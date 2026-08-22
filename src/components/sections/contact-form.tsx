@@ -1,17 +1,17 @@
-import { ContactFormClient } from "@/components/sections/contact-form-client";
+import { QuoteRequestForm } from "@/components/site/quote-request-form";
 import { SectionIntro, SectionShell, dataString } from "@/components/sections/shell";
-import { asString } from "@/lib/sections/parse";
 import type { SectionRenderProps } from "@/lib/sections/types";
 
-export function ContactFormRenderer({ data, settings, headingLevel, locale }: SectionRenderProps) {
-  const variant = asString(settings.variant, "contact") === "quote" ? "quote" : "contact";
+export function ContactFormRenderer({ data, settings, headingLevel, locale, resolved }: SectionRenderProps) {
   return (
     <SectionShell settings={settings}>
       <SectionIntro heading={dataString(data, "heading")} headingLevel={headingLevel} />
-      <ContactFormClient
+      <QuoteRequestForm
         locale={locale}
+        whatsappHref={resolved.whatsappUrl}
         submitLabel={dataString(data, "submit")}
-        variant={variant}
+        services={resolved.services.map((service) => ({ id: service.id, name: service.name }))}
+        products={resolved.products.map((product) => ({ id: product.id, name: product.name }))}
       />
     </SectionShell>
   );
