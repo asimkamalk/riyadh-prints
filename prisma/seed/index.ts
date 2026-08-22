@@ -1,5 +1,13 @@
+import { prisma } from "../../src/lib/db";
+
 async function main() {
-  // Seed data will be added when the schema is defined.
+  // Seed data will be added when models exist.
 }
 
-void main();
+main()
+  .catch((error: unknown) => {
+    throw error;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

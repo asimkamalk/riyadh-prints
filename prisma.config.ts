@@ -8,6 +8,7 @@ export default defineConfig({
     seed: "tsx prisma/seed/index.ts",
   },
   datasource: {
+    // Unpooled Neon host. Migrations cannot run through PgBouncer.
     url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
   },
 });

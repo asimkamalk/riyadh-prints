@@ -1,13 +1,15 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
+// Prisma 7: connection URLs do not live here.
+// DATABASE_URL (pooled, `-pooler` host) → PrismaClient via @prisma/adapter-neon in src/lib/db.ts
+// DIRECT_URL  (unpooled)              → Prisma CLI (migrate, db push, Studio) in prisma.config.ts
+// Driver adapters are required in v7, not a previewFeature.
 datasource db {
   provider = "postgresql"
 }

@@ -15,6 +15,9 @@
     "analyze": "next build",
     "postinstall": "prisma generate"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed/index.ts"
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@neondatabase/serverless": "^1.1.0",

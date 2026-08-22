@@ -1,5 +1,22 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Database (Neon + Prisma)
+
+Copy `.env.example` to `.env` and paste **two** strings from the Neon Console (**Connect**). They look similar; the hostname is the difference.
+
+| Env var | Which Neon string | Hostname | Used by |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | **Pooled connection** | contains `-pooler` (e.g. `ep-xxx-pooler.REGION.aws.neon.tech`) | Next.js runtime. `PrismaClient` in `src/lib/db.ts` via `@prisma/adapter-neon` |
+| `DIRECT_URL` | **Direct connection** | **no** `-pooler` (e.g. `ep-xxx.REGION.aws.neon.tech`) | Prisma CLI only: `migrate`, `db push`, Studio (`prisma.config.ts`) |
+
+Vercel + Neon: set `DATABASE_URL` on the Vercel project to the **pooled** (`-pooler`) host. Serverless invocations open many short-lived connections; the unpooled host will exhaust Neon's connection limit. `DIRECT_URL` is for migrations (`prisma migrate deploy` in CI), not for the running app.
+
+```bash
+npx prisma generate   # after schema changes
+npx prisma migrate dev
+npm run db:seed
+```
+
 ## Getting Started
 
 First, run the development server:
