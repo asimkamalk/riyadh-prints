@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed/index.ts",
+    "db:reset": "prisma migrate reset --force",
     "analyze": "next build",
     "postinstall": "prisma generate"
   },
