@@ -6,17 +6,17 @@ import type { JSONContent } from "@tiptap/react";
 import { EntityForm } from "@/components/admin/entity-form";
 import { FaqEditor } from "@/components/admin/faq-editor";
 import { LocaleTabs } from "@/components/admin/locale-tabs";
-import { MediaPicker } from "@/components/admin/media-picker";
+import { MediaField } from "@/components/admin/media-field";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { SeoPanel, type SeoValues } from "@/components/admin/seo-panel";
 import { SlugInput } from "@/components/admin/slug-input";
 import { adminCollectionMeta } from "@/components/admin/collection-meta";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSiteUrl } from "@/lib/utils/site-url";
 import { withLocalePath } from "@/i18n/routing";
 import type { AdminFaqRow } from "@/server/queries/admin";
+import type { AdminMediaRecord } from "@/server/queries/media";
 
 type AdminEntityEditorProps = {
   collection: string;
@@ -32,7 +32,7 @@ export function AdminEntityEditor({ collection, id, title, faqs }: AdminEntityEd
   const [slug, setSlug] = useState("");
   const [body, setBody] = useState<JSONContent | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [mediaOpen, setMediaOpen] = useState(false);
+  const [hero, setHero] = useState<AdminMediaRecord | null>(null);
   const [seo, setSeo] = useState<SeoValues>({
     metaTitle: "",
     metaDescription: "",
@@ -59,8 +59,7 @@ export function AdminEntityEditor({ collection, id, title, faqs }: AdminEntityEd
   }, []);
 
   return (
-    <>
-      <EntityForm
+    <EntityForm
         title={title}
         description="Content editor shell — save wiring lands with each resource."
         isDirty={dirty}
@@ -122,11 +121,14 @@ export function AdminEntityEditor({ collection, id, title, faqs }: AdminEntityEd
             <FaqEditor scope={meta.faqScope} entityId={id} items={faqs} />
           ) : undefined,
           media: (
-            <div>
-              <Button type="button" variant="outline" onClick={() => setMediaOpen(true)}>
-                Browse media library
-              </Button>
-            </div>
+            <MediaField
+              value={hero}
+              onChange={(media) => {
+                setDirty(true);
+                setHero(media);
+              }}
+              label="Featured image"
+            />
           ),
           settings: (
             <p className="text-sm text-muted-foreground">
@@ -135,7 +137,5 @@ export function AdminEntityEditor({ collection, id, title, faqs }: AdminEntityEd
           ),
         }}
       />
-      <MediaPicker open={mediaOpen} onOpenChange={setMediaOpen} onSelect={() => setMediaOpen(false)} />
-    </>
   );
 }

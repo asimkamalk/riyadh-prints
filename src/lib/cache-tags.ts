@@ -24,4 +24,5 @@ export const tags = {
   search: () => "search",
   redirects: () => "redirects",
   global: () => "global",
+  media: () => "media",
 } as const;

@@ -3,11 +3,8 @@
 import { z } from "zod";
 
 import { appLocaleSchema } from "@/lib/validations/common";
-import {
-  listAdminMedia,
-  listMediaFolders,
-  searchAdminEntities,
-} from "@/server/queries/admin";
+import { listMediaFolders, searchAdminEntities } from "@/server/queries/admin";
+import { listAdminMediaPage } from "@/server/queries/media";
 
 import { CONTENT_ROLES, createAction } from "./_helpers";
 import { isSlugAvailable, type SlugModel } from "./_slug";
@@ -67,19 +64,32 @@ export const searchAdminMedia = createAction({
   input: z.object({
     query: z.string().trim().max(120).optional(),
     folder: z.string().trim().max(80).optional(),
+    type: z.enum(["all", "jpeg", "png", "webp", "avif", "gif", "svg"]).optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    page: z.number().int().min(1).optional(),
+    perPage: z.number().int().min(1).max(100).optional(),
   }),
-  roles: CONTENT_ROLES,
+  roles: ["ADMIN", "EDITOR", "VIEWER"],
   revalidate: () => [],
   audit: false,
   touchSitemap: false,
   rateLimit: { ...readLimit, key: (_i, ip) => `media.search:${ip}` },
   handler: async ({ input }) =>
-    listAdminMedia({ query: input.query, folder: input.folder }),
+    listAdminMediaPage({
+      query: input.query,
+      folder: input.folder,
+      type: input.type,
+      from: input.from,
+      to: input.to,
+      page: input.page,
+      perPage: input.perPage ?? 48,
+    }),
 });
 
 export const listAdminMediaFolders = createAction({
   input: z.object({}),
-  roles: CONTENT_ROLES,
+  roles: ["ADMIN", "EDITOR", "VIEWER"],
   revalidate: () => [],
   audit: false,
   touchSitemap: false,

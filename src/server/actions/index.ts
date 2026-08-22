@@ -101,6 +101,7 @@ export {
   createMedia,
   deleteMedia,
   duplicateMedia,
+  listMediaUsages,
   reorderMedia,
   toggleMediaStatus,
   updateMedia,

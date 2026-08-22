@@ -37,3 +37,10 @@ export {
   getDashboardTopProducts,
 } from "./admin-dashboard";
 export { listAdminFaqs, listAdminMedia, listMediaFolders, searchAdminEntities } from "./admin";
+export {
+  getAdminMedia,
+  listAdminMediaPage,
+  type AdminMediaItem,
+  type AdminMediaRecord,
+} from "./media";
+export { getMediaUsages, type MediaUsage } from "./media-usages";

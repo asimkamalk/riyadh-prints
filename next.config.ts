@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   poweredByHeader: false,
   compress: true,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [

@@ -4,94 +4,24 @@ import { tags } from "@/lib/cache-tags";
 import { tiptapToPlainText } from "@/lib/tiptap-text";
 import { prisma } from "@/server/db";
 import { cachedQuery } from "@/server/queries/_shared";
+import { listAdminMediaPage } from "@/server/queries/media";
 
-export type AdminMediaItem = {
-  id: string;
-  url: string;
-  pathname: string;
-  mimeType: string;
-  width: number | null;
-  height: number | null;
-  folder: string | null;
-  altEn: string;
-  altAr: string;
-  createdAt: string;
-};
+export type { AdminMediaItem, AdminMediaRecord } from "@/server/queries/media";
 
-export function listAdminMedia(args: {
+export async function listAdminMedia(args: {
   query?: string;
   folder?: string;
-}): Promise<AdminMediaItem[]> {
-  const q = args.query?.trim() ?? "";
-  const folder = args.folder?.trim() ?? "";
-  return cachedQuery({
-    key: ["admin-media", q, folder],
-    tags: [tags.global()],
-    revalidate: 30,
-    fn: async () => {
-      const rows = await prisma.media.findMany({
-        where: {
-          ...(folder ? { folder } : {}),
-          ...(q
-            ? {
-                OR: [
-                  { pathname: { contains: q, mode: "insensitive" } },
-                  {
-                    translations: {
-                      some: { alt: { contains: q, mode: "insensitive" } },
-                    },
-                  },
-                ],
-              }
-            : {}),
-        },
-        orderBy: { createdAt: "desc" },
-        take: 60,
-        select: {
-          id: true,
-          url: true,
-          pathname: true,
-          mimeType: true,
-          width: true,
-          height: true,
-          folder: true,
-          createdAt: true,
-          translations: { select: { locale: true, alt: true } },
-        },
-      });
-      return rows.map((row) => ({
-        id: row.id,
-        url: row.url,
-        pathname: row.pathname,
-        mimeType: row.mimeType,
-        width: row.width,
-        height: row.height,
-        folder: row.folder,
-        altEn: row.translations.find((t) => t.locale === "EN")?.alt ?? "",
-        altAr: row.translations.find((t) => t.locale === "AR")?.alt ?? "",
-        createdAt: row.createdAt.toISOString(),
-      }));
-    },
+}) {
+  const page = await listAdminMediaPage({
+    query: args.query,
+    folder: args.folder,
+    page: 1,
+    perPage: 60,
   });
+  return page.items;
 }
 
-export function listMediaFolders(): Promise<string[]> {
-  return cachedQuery({
-    key: ["admin-media-folders"],
-    tags: [tags.global()],
-    revalidate: 60,
-    fn: async () => {
-      const rows = await prisma.media.findMany({
-        distinct: ["folder"],
-        select: { folder: true },
-      });
-      return rows
-        .map((row) => row.folder)
-        .filter((folder): folder is string => Boolean(folder))
-        .sort();
-    },
-  });
-}
+export { listMediaFolders } from "@/server/queries/media";
 
 export type AdminSearchHit = {
   id: string;

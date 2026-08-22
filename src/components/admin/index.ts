@@ -8,6 +8,7 @@ export { LocaleTabs } from "./locale-tabs";
 export { SlugInput } from "./slug-input";
 export { SeoPanel, type SeoValues } from "./seo-panel";
 export { MediaPicker } from "./media-picker";
+export { MediaField } from "./media-field";
 export { RichTextEditor } from "./rich-text-editor";
 export { SortableList } from "./sortable-list";
 export { FaqEditor } from "./faq-editor";
