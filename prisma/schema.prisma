@@ -1,15 +1,1463 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Riyadh Prints — Prisma schema (Prisma 7 + Neon Postgres).
+// Do not add url/directUrl here; see prisma.config.ts and src/lib/db.ts.
+//
+// Translation rule: base model = identity, status, relations, non-copy.
+// *Translation = ALL locale text + SEO. Arabic may use a different slug.
+// SEO fields on every indexable *Translation (models with a public URL).
+// Chrome translations (menus, stats, banners, options, FAQ answers, section
+// data) omit SEO — they are not documents.
+//
+// Section builder: `Section` is polymorphic (page | service | product |
+// project | post). `settings` = layout/style; `SectionTranslation.data` =
+// locale copy and media IDs. Prefer this over per-type section tables.
+//
+// Migration: `legacyWpId` / `legacyPath` map WordPress rows and permalinks
+// into Redirects. Wishlist/compare/shop URLs are redirects, not features.
 
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
-// Prisma 7: connection URLs do not live here.
-// DATABASE_URL (pooled, `-pooler` host) → PrismaClient via @prisma/adapter-neon in src/lib/db.ts
-// DIRECT_URL  (unpooled)              → Prisma CLI (migrate, db push, Studio) in prisma.config.ts
-// Driver adapters are required in v7, not a previewFeature.
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Locale {
+  EN
+  AR
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum MenuLocation {
+  HEADER
+  FOOTER_INFO
+  FOOTER_LINKS
+  FOOTER_ABOUT
+  MOBILE
+}
+
+enum LinkType {
+  INTERNAL
+  EXTERNAL
+  PAGE
+  PRODUCT
+  CATEGORY
+  SERVICE
+  POST
+  PROJECT
+  AUTHOR
+}
+
+enum SectionType {
+  HERO
+  USP_GRID
+  SERVICE_GRID
+  CATEGORY_GRID
+  FEATURED_PRODUCTS
+  RICH_TEXT
+  IMAGE_TEXT
+  STATS
+  TESTIMONIALS
+  PARTNERS
+  CTA_BANNER
+  FAQ
+  GALLERY
+  PRICING_TABLE
+  STEPS
+  VIDEO
+  CONTACT_FORM
+}
+
+enum FaqScope {
+  GLOBAL
+  PAGE
+  PRODUCT
+  CATEGORY
+  SERVICE
+  POST
+  PROJECT
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  QUOTED
+  WON
+  LOST
+  SPAM
+}
+
+enum RedirectType {
+  PERMANENT
+  TEMPORARY
+}
+
+enum CategoryKind {
+  PRODUCT
+  POST
+  PORTFOLIO
+  SERVICE
+  PAGE
+}
+
+enum TagKind {
+  POST
+  PRODUCT
+}
+
+// ---------------------------------------------------------------------------
+// Auth & admin (Auth.js v5 Prisma adapter + credentials)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  passwordHash  String?
+  role          UserRole  @default(VIEWER)
+  image         String?
+  lastLoginAt   DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  uploads      Media[]
+  inquiries    Inquiry[]  @relation("InquiryAssignee")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+
+model Media {
+  id           String   @id @default(cuid())
+  url          String
+  pathname     String
+  provider     String   @default("vercel-blob")
+  mimeType     String
+  width        Int?
+  height       Int?
+  blurDataUrl  String?  @db.Text
+  sizeBytes    Int?
+  folder       String?  @default("uploads")
+  uploadedById String?
+  legacyWpId   Int?
+  createdAt    DateTime @default(now())
+
+  uploadedBy   User?             @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  translations MediaTranslation[]
+
+  categoryImages          Category[]           @relation("CategoryImage")
+  serviceImages           Service[]            @relation("ServiceImage")
+  serviceHeroImages       Service[]            @relation("ServiceHeroImage")
+  productImages           ProductImage[]
+  postCovers              Post[]               @relation("PostCover")
+  authorAvatars           Author[]             @relation("AuthorAvatar")
+  projectCovers           Project[]            @relation("ProjectCover")
+  projectImages           ProjectImage[]
+  testimonialAvatars      Testimonial[]        @relation("TestimonialAvatar")
+  partnerLogos            Partner[]            @relation("PartnerLogo")
+  bannerImages            Banner[]             @relation("BannerImage")
+  bannerMobileImages      Banner[]             @relation("BannerMobileImage")
+  teamAvatars             TeamMember[]         @relation("TeamMemberAvatar")
+  relatedFiles            RelatedFile[]
+
+  @@unique([legacyWpId])
+  @@index([folder, createdAt])
+  @@index([uploadedById])
+  @@index([createdAt])
+}
+
+model MediaTranslation {
+  id      String @id @default(cuid())
+  mediaId String
+  locale  Locale
+  alt     String
+  title   String?
+  caption String?
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, locale])
+  @@index([locale])
+}
+
+// ---------------------------------------------------------------------------
+// Taxonomy & navigation
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String        @id @default(cuid())
+  slug        String
+  kind        CategoryKind
+  parentId    String?
+  sortOrder   Int           @default(0)
+  isFeatured  Boolean       @default(false)
+  imageId     String?
+  iconName    String?
+  status      ContentStatus @default(DRAFT)
+  legacyWpId  Int?
+  legacyPath  String?
+  showInSitemap Boolean     @default(true)
+  priority    Float?
+  changeFrequency String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  parent       Category?            @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Category[]           @relation("CategoryTree")
+  image        Media?               @relation("CategoryImage", fields: [imageId], references: [id], onDelete: SetNull)
+  translations CategoryTranslation[]
+  products     Product[]            @relation("ProductPrimaryCategory")
+  productLinks ProductToCategory[]
+  postLinks    PostToCategory[]
+  projects     Project[]            @relation("ProjectPrimaryCategory")
+  projectLinks ProjectToCategory[]
+  services     Service[]
+  faqs         FaqItem[]
+
+  @@unique([kind, slug])
+  @@unique([legacyWpId])
+  @@index([parentId])
+  @@index([imageId])
+  @@index([kind, status, sortOrder])
+}
+
+model CategoryTranslation {
+  id              String  @id @default(cuid())
+  categoryId      String
+  locale          Locale
+  name            String
+  slug            String
+  shortDescription String?
+  longDescription String? @db.Text
+  heroHeading     String?
+  heroSubheading  String?
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+  @@index([categoryId])
+}
+
+model Tag {
+  id         String   @id @default(cuid())
+  slug       String
+  kind       TagKind
+  legacyWpId Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  translations TagTranslation[]
+  postLinks    PostToTag[]
+  productLinks ProductToTag[]
+
+  @@unique([kind, slug])
+  @@unique([legacyWpId])
+}
+
+model TagTranslation {
+  id              String  @id @default(cuid())
+  tagId           String
+  locale          Locale
+  name            String
+  slug            String
+  description     String? @db.Text
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+  @@unique([locale, slug])
+  @@index([tagId])
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  location     MenuLocation
+  parentId     String?
+  sortOrder    Int          @default(0)
+  linkType     LinkType
+  targetId     String?
+  externalUrl  String?
+  internalPath String?
+  openInNewTab Boolean      @default(false)
+  iconName     String?
+  isMegaMenu   Boolean      @default(false)
+  highlight    Boolean      @default(false)
+  isVisible    Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  parent       MenuItem?            @relation("MenuTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     MenuItem[]           @relation("MenuTree")
+  translations MenuItemTranslation[]
+
+  @@index([location, sortOrder])
+  @@index([parentId])
+  @@index([linkType, targetId])
+}
+
+model MenuItemTranslation {
+  id          String @id @default(cuid())
+  menuItemId  String
+  locale      Locale
+  label       String
+  description String?
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, locale])
+  @@index([menuItemId])
+}
+
+// ---------------------------------------------------------------------------
+// Locations & team (NAP + Person pages the WP site actually has)
+// ---------------------------------------------------------------------------
+
+model Location {
+  id              String  @id @default(cuid())
+  isPrimary       Boolean @default(false)
+  phone           String?
+  whatsapp        String?
+  email           String?
+  lat             Decimal? @db.Decimal(10, 7)
+  lng             Decimal? @db.Decimal(10, 7)
+  googleMapsUrl   String?
+  googlePlaceId   String?
+  vatNumber       String?
+  crNumber        String?
+  nationalAddress String?
+  hours           Json?
+  sortOrder       Int     @default(0)
+  isVisible       Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  translations LocationTranslation[]
+}
+
+model LocationTranslation {
+  id              String  @id @default(cuid())
+  locationId      String
+  locale          Locale
+  name            String
+  slug            String
+  addressLine1    String?
+  addressLine2    String?
+  city            String?
+  region          String?
+  postalCode      String?
+  country         String?
+  directions      String? @db.Text
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, locale])
+  @@unique([locale, slug])
+  @@index([locationId])
+}
+
+model TeamMember {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  avatarId   String?
+  email      String?
+  phone      String?
+  socials    Json?
+  sortOrder  Int      @default(0)
+  isVisible  Boolean  @default(true)
+  authorId   String?  @unique
+  legacyPath String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  avatar       Media?                 @relation("TeamMemberAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
+  author       Author?                @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  translations TeamMemberTranslation[]
+
+  @@index([avatarId])
+  @@index([sortOrder])
+}
+
+model TeamMemberTranslation {
+  id              String  @id @default(cuid())
+  teamMemberId    String
+  locale          Locale
+  name            String
+  slug            String
+  role            String?
+  bio             String? @db.Text
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  teamMember TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([teamMemberId, locale])
+  @@unique([locale, slug])
+  @@index([teamMemberId])
+}
+
+// ---------------------------------------------------------------------------
+// Pages & section builder
+// ---------------------------------------------------------------------------
+
+model Page {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  parentId        String?
+  template        String?
+  status          ContentStatus @default(DRAFT)
+  publishedAt     DateTime?
+  sortOrder       Int           @default(0)
+  showInSitemap   Boolean       @default(true)
+  priority        Float?
+  changeFrequency String?
+  legacyWpId      Int?
+  legacyPath      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  parent       Page?             @relation("PageTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Page[]            @relation("PageTree")
+  translations PageTranslation[]
+  sections     Section[]
+  faqs         FaqItem[]
+  files        RelatedFile[]
+
+  @@unique([legacyWpId])
+  @@index([parentId])
+  @@index([status, publishedAt])
+}
+
+model PageTranslation {
+  id              String  @id @default(cuid())
+  pageId          String
+  locale          Locale
+  title           String
+  slug            String
+  excerpt         String? @db.Text
+  content         Json?
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@unique([locale, slug])
+  @@index([pageId])
+}
+
+model Section {
+  id        String      @id @default(cuid())
+  type      SectionType
+  sortOrder Int         @default(0)
+  isVisible Boolean     @default(true)
+  settings  Json
+  pageId    String?
+  serviceId String?
+  productId String?
+  projectId String?
+  postId    String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  page         Page?                 @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  service      Service?              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  product      Product?              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  project      Project?              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  post         Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
+  translations SectionTranslation[]
+
+  @@index([pageId, sortOrder])
+  @@index([serviceId, sortOrder])
+  @@index([productId, sortOrder])
+  @@index([projectId, sortOrder])
+  @@index([postId, sortOrder])
+}
+
+model SectionTranslation {
+  id        String @id @default(cuid())
+  sectionId String
+  locale    Locale
+  data      Json
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, locale])
+  @@index([sectionId])
+}
+
+// ---------------------------------------------------------------------------
+// Services (/services/{slug} — live WP stores these as child pages)
+// ---------------------------------------------------------------------------
+
+model Service {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  parentId       String?
+  categoryId     String?
+  iconName       String?
+  imageId        String?
+  heroImageId    String?
+  sortOrder      Int           @default(0)
+  isFeatured     Boolean       @default(false)
+  turnaroundTime String?
+  startingPrice  Decimal?      @db.Decimal(12, 2)
+  status         ContentStatus @default(DRAFT)
+  publishedAt    DateTime?
+  showInSitemap  Boolean       @default(true)
+  priority       Float?
+  changeFrequency String?
+  legacyWpId     Int?
+  legacyPath     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  parent       Service?             @relation("ServiceTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Service[]            @relation("ServiceTree")
+  category     Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  image        Media?               @relation("ServiceImage", fields: [imageId], references: [id], onDelete: SetNull)
+  heroImage    Media?               @relation("ServiceHeroImage", fields: [heroImageId], references: [id], onDelete: SetNull)
+  translations ServiceTranslation[]
+  sections     Section[]
+  faqs         FaqItem[]
+  files        RelatedFile[]
+  inquiries    Inquiry[]
+
+  @@unique([legacyWpId])
+  @@index([parentId])
+  @@index([categoryId])
+  @@index([imageId])
+  @@index([heroImageId])
+  @@index([status, sortOrder])
+  @@index([isFeatured, status])
+}
+
+model ServiceTranslation {
+  id               String  @id @default(cuid())
+  serviceId        String
+  locale           Locale
+  name             String
+  slug             String
+  shortDescription String? @db.Text
+  longDescription  Json?
+  benefits         Json?
+  processSteps     Json?
+  heroHeading      String?
+  heroSubheading   String?
+  ctaLabel         String?
+  metaTitle        String?
+  metaDescription  String?
+  ogTitle          String?
+  ogDescription    String?
+  ogImageId        String?
+  canonicalUrl     String?
+  noIndex          Boolean @default(false)
+  noFollow         Boolean @default(false)
+  jsonLdOverride   Json?
+  focusKeyword     String?
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, locale])
+  @@unique([locale, slug])
+  @@index([serviceId])
+}
+
+// ---------------------------------------------------------------------------
+// Products (catalogue only — no cart or checkout)
+// ---------------------------------------------------------------------------
+
+model Product {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  sku              String?       @unique
+  categoryId       String?
+  status           ContentStatus @default(DRAFT)
+  isFeatured       Boolean       @default(false)
+  isNew            Boolean       @default(false)
+  includesDesign   Boolean       @default(false)
+  sortOrder        Int           @default(0)
+  basePrice        Decimal?      @db.Decimal(12, 2)
+  priceUnit        String?
+  minOrderQty      Int?
+  turnaroundDays   Int?
+  sameDayAvailable Boolean       @default(false)
+  viewCount        Int           @default(0)
+  publishedAt      DateTime?
+  showInSitemap    Boolean       @default(true)
+  priority         Float?
+  changeFrequency  String?
+  legacyWpId       Int?
+  legacyPath       String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  category       Category?              @relation("ProductPrimaryCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  translations   ProductTranslation[]
+  images         ProductImage[]
+  options        ProductOption[]
+  priceTiers     ProductPriceTier[]
+  categories     ProductToCategory[]
+  tags           ProductToTag[]
+  relationsFrom  ProductRelation[]      @relation("ProductRelations")
+  relationsTo    ProductRelation[]      @relation("RelatedProducts")
+  sections       Section[]
+  faqs           FaqItem[]
+  files          RelatedFile[]
+  inquiries      Inquiry[]
+
+  @@unique([legacyWpId])
+  @@index([categoryId, status, sortOrder])
+  @@index([status, publishedAt])
+  @@index([isFeatured, status])
+}
+
+model ProductTranslation {
+  id               String  @id @default(cuid())
+  productId        String
+  locale           Locale
+  name             String
+  slug             String
+  shortDescription String? @db.Text
+  longDescription  Json?
+  specifications   Json?
+  materials        Json?
+  useCases         Json?
+  metaTitle        String?
+  metaDescription  String?
+  ogTitle          String?
+  ogDescription    String?
+  ogImageId        String?
+  canonicalUrl     String?
+  noIndex          Boolean @default(false)
+  noFollow         Boolean @default(false)
+  jsonLdOverride   Json?
+  focusKeyword     String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@unique([locale, slug])
+  @@index([productId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  mediaId   String
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, mediaId])
+  @@index([productId, sortOrder])
+  @@index([mediaId])
+}
+
+model ProductOption {
+  id        String @id @default(cuid())
+  productId String
+  key       String
+  sortOrder Int    @default(0)
+
+  product      Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  translations ProductOptionTranslation[]
+  values       ProductOptionValue[]
+
+  @@unique([productId, key])
+  @@index([productId, sortOrder])
+}
+
+model ProductOptionTranslation {
+  id       String @id @default(cuid())
+  optionId String
+  locale   Locale
+  label    String
+
+  option ProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, locale])
+  @@index([optionId])
+}
+
+model ProductOptionValue {
+  id            String  @id @default(cuid())
+  optionId      String
+  value         String
+  priceModifier Decimal @default(0) @db.Decimal(12, 2)
+  sortOrder     Int     @default(0)
+
+  option       ProductOption                   @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  translations ProductOptionValueTranslation[]
+
+  @@unique([optionId, value])
+  @@index([optionId, sortOrder])
+}
+
+model ProductOptionValueTranslation {
+  id      String @id @default(cuid())
+  valueId String
+  locale  Locale
+  label   String
+
+  value ProductOptionValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
+
+  @@unique([valueId, locale])
+  @@index([valueId])
+}
+
+model ProductPriceTier {
+  id        String   @id @default(cuid())
+  productId String
+  minQty    Int
+  maxQty    Int?
+  unitPrice Decimal  @db.Decimal(12, 2)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, minQty])
+  @@index([productId])
+}
+
+model ProductRelation {
+  id               String @id @default(cuid())
+  productId        String
+  relatedProductId String
+  sortOrder        Int    @default(0)
+
+  product Product @relation("ProductRelations", fields: [productId], references: [id], onDelete: Cascade)
+  related Product @relation("RelatedProducts", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId])
+  @@index([productId, sortOrder])
+  @@index([relatedProductId])
+}
+
+model ProductToCategory {
+  productId  String
+  categoryId String
+  sortOrder  Int    @default(0)
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+model ProductToTag {
+  productId String
+  tagId     String
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@index([tagId])
+}
+
+// ---------------------------------------------------------------------------
+// Blog
+// ---------------------------------------------------------------------------
+
+model Author {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  avatarId  String?
+  email     String?
+  socials   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  avatar       Media?              @relation("AuthorAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
+  translations AuthorTranslation[]
+  posts        Post[]
+  teamMember   TeamMember?
+
+  @@index([avatarId])
+}
+
+model AuthorTranslation {
+  id              String  @id @default(cuid())
+  authorId        String
+  locale          Locale
+  name            String
+  slug            String
+  role            String?
+  bio             String? @db.Text
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, locale])
+  @@unique([locale, slug])
+  @@index([authorId])
+}
+
+model Post {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  authorId        String
+  coverImageId    String?
+  status          ContentStatus @default(DRAFT)
+  publishedAt     DateTime?
+  readingMinutes  Int?
+  isFeatured      Boolean       @default(false)
+  viewCount       Int           @default(0)
+  showInSitemap   Boolean       @default(true)
+  priority        Float?
+  changeFrequency String?
+  legacyWpId      Int?
+  legacyPath      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  author       Author            @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  coverImage   Media?            @relation("PostCover", fields: [coverImageId], references: [id], onDelete: SetNull)
+  translations PostTranslation[]
+  categories   PostToCategory[]
+  tags         PostToTag[]
+  sections     Section[]
+  faqs         FaqItem[]
+
+  @@unique([legacyWpId])
+  @@index([authorId])
+  @@index([coverImageId])
+  @@index([status, publishedAt])
+  @@index([isFeatured, status])
+}
+
+model PostTranslation {
+  id              String  @id @default(cuid())
+  postId          String
+  locale          Locale
+  title           String
+  slug            String
+  excerpt         String? @db.Text
+  content         Json?
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, locale])
+  @@unique([locale, slug])
+  @@index([postId])
+}
+
+model PostToCategory {
+  postId     String
+  categoryId String
+
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId])
+}
+
+model PostToTag {
+  postId String
+  tagId  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
+
+// ---------------------------------------------------------------------------
+// Portfolio (WP CPT elemenfolio)
+// ---------------------------------------------------------------------------
+
+model Project {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  clientName      String?
+  coverImageId    String?
+  completedAt     DateTime?
+  categoryId      String?
+  sortOrder       Int           @default(0)
+  status          ContentStatus @default(DRAFT)
+  publishedAt     DateTime?
+  showInSitemap   Boolean       @default(true)
+  priority        Float?
+  changeFrequency String?
+  legacyWpId      Int?
+  legacyPath      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  coverImage   Media?                 @relation("ProjectCover", fields: [coverImageId], references: [id], onDelete: SetNull)
+  category     Category?              @relation("ProjectPrimaryCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  translations ProjectTranslation[]
+  images       ProjectImage[]
+  categories   ProjectToCategory[]
+  sections     Section[]
+  faqs         FaqItem[]
+  files        RelatedFile[]
+
+  @@unique([legacyWpId])
+  @@index([coverImageId])
+  @@index([categoryId])
+  @@index([status, sortOrder])
+}
+
+model ProjectTranslation {
+  id              String  @id @default(cuid())
+  projectId       String
+  locale          Locale
+  title           String
+  slug            String
+  summary         String? @db.Text
+  content         Json?
+  challenge       String? @db.Text
+  solution        String? @db.Text
+  result          String? @db.Text
+  metaTitle       String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  canonicalUrl    String?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  jsonLdOverride  Json?
+  focusKeyword    String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, locale])
+  @@unique([locale, slug])
+  @@index([projectId])
+}
+
+model ProjectImage {
+  id        String @id @default(cuid())
+  projectId String
+  mediaId   String
+  sortOrder Int    @default(0)
+
+  project      Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media        Media                     @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  translations ProjectImageTranslation[]
+
+  @@index([projectId, sortOrder])
+  @@index([mediaId])
+}
+
+model ProjectImageTranslation {
+  id             String @id @default(cuid())
+  projectImageId String
+  locale         Locale
+  caption        String?
+
+  projectImage ProjectImage @relation(fields: [projectImageId], references: [id], onDelete: Cascade)
+
+  @@unique([projectImageId, locale])
+  @@index([projectImageId])
+}
+
+model ProjectToCategory {
+  projectId  String
+  categoryId String
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, categoryId])
+  @@index([categoryId])
+}
+
+// ---------------------------------------------------------------------------
+// FAQ (nullable FKs per scope so cascades stay typed)
+// ---------------------------------------------------------------------------
+
+model FaqGroup {
+  id        String @id @default(cuid())
+  scope     FaqScope
+  sortOrder Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations FaqGroupTranslation[]
+  items        FaqItem[]
+
+  @@index([scope, sortOrder])
+}
+
+model FaqGroupTranslation {
+  id         String @id @default(cuid())
+  groupId    String
+  locale     Locale
+  heading    String
+  subheading String?
+
+  group FaqGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, locale])
+  @@index([groupId])
+}
+
+model FaqItem {
+  id         String   @id @default(cuid())
+  groupId    String?
+  scope      FaqScope
+  pageId     String?
+  productId  String?
+  categoryId String?
+  serviceId  String?
+  postId     String?
+  projectId  String?
+  sortOrder  Int      @default(0)
+  isVisible  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  group        FaqGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  page         Page?                @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  product      Product?             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category     Category?            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  service      Service?             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  post         Post?                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  project      Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  translations FaqItemTranslation[]
+
+  @@index([groupId, sortOrder])
+  @@index([pageId])
+  @@index([productId])
+  @@index([categoryId])
+  @@index([serviceId])
+  @@index([postId])
+  @@index([projectId])
+  @@index([scope, isVisible])
+}
+
+model FaqItemTranslation {
+  id       String @id @default(cuid())
+  faqItemId String
+  locale   Locale
+  question String
+  answer   Json
+
+  faqItem FaqItem @relation(fields: [faqItemId], references: [id], onDelete: Cascade)
+
+  @@unique([faqItemId, locale])
+  @@index([faqItemId])
+}
+
+// ---------------------------------------------------------------------------
+// Social proof & marketing
+// ---------------------------------------------------------------------------
+
+model Testimonial {
+  id          String        @id @default(cuid())
+  authorName  String
+  authorRole  String?
+  company     String?
+  rating      Int?
+  avatarId    String?
+  sortOrder   Int           @default(0)
+  isFeatured  Boolean       @default(false)
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  avatar       Media?                   @relation("TestimonialAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
+  translations TestimonialTranslation[]
+
+  @@index([avatarId])
+  @@index([status, sortOrder])
+  @@index([isFeatured, status])
+}
+
+model TestimonialTranslation {
+  id         String @id @default(cuid())
+  testimonialId String
+  locale     Locale
+  quote      String @db.Text
+  authorName String?
+  authorRole String?
+
+  testimonial Testimonial @relation(fields: [testimonialId], references: [id], onDelete: Cascade)
+
+  @@unique([testimonialId, locale])
+  @@index([testimonialId])
+}
+
+model Partner {
+  id         String  @id @default(cuid())
+  name       String
+  logoId     String?
+  websiteUrl String?
+  sortOrder  Int     @default(0)
+  isVisible  Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  logo         Media?                @relation("PartnerLogo", fields: [logoId], references: [id], onDelete: SetNull)
+  translations PartnerTranslation[]
+
+  @@index([logoId])
+  @@index([sortOrder])
+}
+
+model PartnerTranslation {
+  id        String @id @default(cuid())
+  partnerId String
+  locale    Locale
+  name      String
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, locale])
+  @@index([partnerId])
+}
+
+model Stat {
+  id        String @id @default(cuid())
+  value     String
+  suffix    String?
+  prefix    String?
+  sortOrder Int    @default(0)
+  iconName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations StatTranslation[]
+
+  @@index([sortOrder])
+}
+
+model StatTranslation {
+  id     String @id @default(cuid())
+  statId String
+  locale Locale
+  label  String
+
+  stat Stat @relation(fields: [statId], references: [id], onDelete: Cascade)
+
+  @@unique([statId, locale])
+  @@index([statId])
+}
+
+model Banner {
+  id            String    @id @default(cuid())
+  placement     String
+  imageId       String?
+  mobileImageId String?
+  linkUrl       String?
+  startsAt      DateTime?
+  endsAt        DateTime?
+  sortOrder     Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  image        Media?              @relation("BannerImage", fields: [imageId], references: [id], onDelete: SetNull)
+  mobileImage  Media?              @relation("BannerMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
+  translations BannerTranslation[]
+
+  @@index([placement, isActive, sortOrder])
+  @@index([imageId])
+  @@index([mobileImageId])
+  @@index([startsAt, endsAt])
+}
+
+model BannerTranslation {
+  id        String @id @default(cuid())
+  bannerId  String
+  locale    Locale
+  heading   String?
+  subheading String?
+  ctaLabel  String?
+
+  banner Banner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+
+  @@unique([bannerId, locale])
+  @@index([bannerId])
+}
+
+// ---------------------------------------------------------------------------
+// Print files (dielines, templates, spec sheets)
+// ---------------------------------------------------------------------------
+
+model RelatedFile {
+  id        String  @id @default(cuid())
+  mediaId   String
+  kind      String  @default("file")
+  sortOrder Int     @default(0)
+  productId String?
+  serviceId String?
+  pageId    String?
+  projectId String?
+  createdAt DateTime @default(now())
+
+  media        Media                     @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  product      Product?                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  service      Service?                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  page         Page?                     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  project      Project?                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  translations RelatedFileTranslation[]
+
+  @@index([mediaId])
+  @@index([productId])
+  @@index([serviceId])
+  @@index([pageId])
+  @@index([projectId])
+}
+
+model RelatedFileTranslation {
+  id            String @id @default(cuid())
+  relatedFileId String
+  locale        Locale
+  title         String
+  description   String?
+
+  relatedFile RelatedFile @relation(fields: [relatedFileId], references: [id], onDelete: Cascade)
+
+  @@unique([relatedFileId, locale])
+  @@index([relatedFileId])
+}
+
+// ---------------------------------------------------------------------------
+// Leads
+// ---------------------------------------------------------------------------
+
+model Inquiry {
+  id              String        @id @default(cuid())
+  name            String
+  email           String
+  phone           String
+  company         String?
+  serviceInterest String?
+  productId       String?
+  serviceId       String?
+  quantity        String?
+  selections      Json?
+  message         String        @db.Text
+  fileUrls        String[]      @default([])
+  status          InquiryStatus @default(NEW)
+  source          String        @default("quote-form")
+  locale          Locale        @default(EN)
+  ipHash          String?
+  userAgent       String?
+  adminNotes      String?       @db.Text
+  assignedToId    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  service    Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  assignedTo User?    @relation("InquiryAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([productId])
+  @@index([serviceId])
+  @@index([assignedToId])
+  @@index([locale, createdAt])
+}
+
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  locale         Locale    @default(EN)
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  source         String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([locale])
+}
+
+// ---------------------------------------------------------------------------
+// Infrastructure
+// ---------------------------------------------------------------------------
+
+model Redirect {
+  id          String       @id @default(cuid())
+  source      String       @unique
+  destination String
+  type        RedirectType @default(PERMANENT)
+  isActive    Boolean      @default(true)
+  hitCount    Int          @default(0)
+  lastHitAt   DateTime?
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([isActive])
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  group     String
+  updatedAt DateTime @updatedAt
+
+  @@index([group])
+}
+
+model SearchIndex {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  locale     Locale
+  slug       String
+  title      String
+  body       String   @db.Text
+  updatedAt  DateTime @updatedAt
+
+  @@unique([entityType, entityId, locale])
+  @@index([locale, slug])
+  @@index([entityType, locale])
 }
