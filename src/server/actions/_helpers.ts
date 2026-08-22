@@ -7,7 +7,7 @@ import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import type { UserRole } from "@/generated/prisma/enums";
 import { tags } from "@/lib/cache-tags";
-import { getSessionUser, type ActionUser } from "@/server/auth";
+import { getSessionUser, type ActionUser } from "@/server/auth/guards";
 import { prisma } from "@/server/db";
 
 export type { ActionUser };
@@ -68,6 +68,16 @@ function jsonSafe(value: unknown): Prisma.InputJsonValue {
   } catch {
     return {};
   }
+}
+
+function isNextRedirect(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
 }
 
 function toMetaResult(value: unknown): ActionMetaResult {
@@ -219,6 +229,9 @@ export function createAction<TSchema extends z.ZodType, TReturn>(
 
       return { ok: true, data: result };
     } catch (error) {
+      if (isNextRedirect(error)) {
+        throw error;
+      }
       if (error instanceof ActionError) {
         return { ok: false, error: error.message };
       }

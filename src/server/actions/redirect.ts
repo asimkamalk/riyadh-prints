@@ -24,7 +24,7 @@ const redirectUpdateSchema = redirectCreateSchema.partial().extend({
 export const createRedirect = createAction({
   input: redirectCreateSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.create", entityType: "redirect", entityId: (_i, r) => r.id },
   handler: async ({ input }) => {
     const source = normalizePath(input.source);
@@ -47,7 +47,7 @@ export const createRedirect = createAction({
 export const updateRedirect = createAction({
   input: redirectUpdateSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.update", entityType: "redirect", entityId: (i) => i.id },
   handler: async ({ input }) => {
     const existing = await prisma.redirect.findUnique({
@@ -73,7 +73,7 @@ export const updateRedirect = createAction({
 export const deleteRedirect = createAction({
   input: idSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.delete", entityType: "redirect", entityId: (i) => i.id },
   handler: async ({ input }) => {
     const existing = await prisma.redirect.findUnique({
@@ -94,7 +94,7 @@ export const deleteRedirect = createAction({
 export const duplicateRedirect = createAction({
   input: idSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.duplicate", entityType: "redirect", entityId: (_i, r) => r.id },
   handler: async ({ input }) => {
     const existing = await prisma.redirect.findUnique({
@@ -119,7 +119,7 @@ export const duplicateRedirect = createAction({
 export const toggleRedirectStatus = createAction({
   input: idSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.toggleStatus", entityType: "redirect", entityId: (i) => i.id },
   handler: async ({ input }) => {
     const existing = await prisma.redirect.findUnique({
@@ -140,7 +140,7 @@ export const toggleRedirectStatus = createAction({
 export const reorderRedirects = createAction({
   input: reorderSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.reorder", entityType: "redirect", entityId: () => "batch" },
   handler: async () => {
     throw new ActionError("Redirects have no sort order.");
@@ -153,7 +153,7 @@ export const bulkUpdateRedirectStatus = createAction({
     isActive: z.boolean(),
   }),
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.bulkUpdateStatus", entityType: "redirect", entityId: () => "batch" },
   handler: async ({ input }) => {
     const result = await prisma.redirect.updateMany({
@@ -167,7 +167,7 @@ export const bulkUpdateRedirectStatus = createAction({
 export const bulkDeleteRedirects = createAction({
   input: bulkIdsSchema,
   roles: CONTENT_ROLES,
-  revalidate: () => [tags.global()],
+  revalidate: () => [tags.redirects(), tags.global()],
   audit: { action: "redirect.bulkDelete", entityType: "redirect", entityId: () => "batch" },
   handler: async ({ input }) => {
     const result = await prisma.redirect.updateMany({

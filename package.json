@@ -21,6 +21,7 @@
     "seed": "tsx prisma/seed/index.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^5.9.1",
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^7.9.1",

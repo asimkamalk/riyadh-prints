@@ -16,6 +16,10 @@ const {
   transaction: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidateTag: vi.fn(),
+}));
+
 vi.mock("@/server/db", () => ({
   prisma: {
     $transaction: (...args: unknown[]) => transaction(...args),

@@ -22,5 +22,6 @@ export const tags = {
   testimonials: () => "testimonials",
   sitemap: () => "sitemap",
   search: () => "search",
+  redirects: () => "redirects",
   global: () => "global",
 } as const;

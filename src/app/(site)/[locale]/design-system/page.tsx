@@ -7,6 +7,7 @@ import { TokenShowcase } from "./token-showcase";
 import { TypeShowcase } from "./type-showcase";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { isLocale, type Locale } from "@/i18n/locales";
+import { withLocalePath } from "@/i18n/routing";
 import { absoluteUrl } from "@/lib/utils/site-url";
 
 type DesignSystemPageProps = {
@@ -14,7 +15,7 @@ type DesignSystemPageProps = {
 };
 
 function localePath(locale: Locale, path: string): string {
-  return `/${locale}${path}`;
+  return withLocalePath(locale, path);
 }
 
 export async function generateMetadata({
@@ -57,7 +58,7 @@ export default async function DesignSystemPage({ params }: DesignSystemPageProps
     <main className="container-page py-xl">
       <Breadcrumbs
         items={[
-          { href: `/${rawLocale}`, label: "Home" },
+          { href: withLocalePath(rawLocale, "/"), label: "Home" },
           { href: path, label: "Design system" },
         ]}
       />

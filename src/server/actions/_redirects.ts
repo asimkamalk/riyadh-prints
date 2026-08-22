@@ -1,5 +1,9 @@
+import { revalidateTag } from "next/cache";
+
 import type { CategoryKind } from "@/generated/prisma/enums";
 import type { Locale } from "@/i18n/locales";
+import { tags } from "@/lib/cache-tags";
+import { normalizePathname } from "@/lib/pathname";
 import { prisma } from "@/server/db";
 import {
   categoryHref,
@@ -11,13 +15,7 @@ import {
 } from "@/server/queries/_shared";
 
 export function normalizePath(path: string): string {
-  if (!path.startsWith("/")) {
-    path = `/${path}`;
-  }
-  if (path.length > 1) {
-    path = path.replace(/\/+$/, "");
-  }
-  return path;
+  return normalizePathname(path);
 }
 
 export type RedirectEntityType =
@@ -96,6 +94,7 @@ export async function ensurePermanentRedirect(
     }
   });
 
+  revalidateTag(tags.redirects());
   return { created: true, source, destination };
 }
 

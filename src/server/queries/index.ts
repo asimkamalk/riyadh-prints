@@ -28,3 +28,4 @@ export {
 } from "./projects";
 export { searchAll } from "./search";
 export { getBreadcrumbTrail } from "./breadcrumbs";
+export { getRedirectMap } from "./redirects";

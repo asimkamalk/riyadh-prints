@@ -17,7 +17,7 @@ vi.mock("next/headers", () => ({
     }),
 }));
 
-vi.mock("@/server/auth", () => ({
+vi.mock("@/server/auth/guards", () => ({
   getSessionUser: (...args: unknown[]) => getSessionUser(...args),
 }));
 
@@ -28,7 +28,7 @@ vi.mock("@/server/db", () => ({
 }));
 
 import { tags } from "@/lib/cache-tags";
-import type { ActionUser } from "@/server/auth";
+import type { ActionUser } from "@/server/auth/guards";
 
 import {
   CONTENT_ROLES,

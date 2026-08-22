@@ -186,6 +186,7 @@ export {
   toggleInquiryStatus,
   updateInquiry,
 } from "./inquiry";
+export { signInWithPassword } from "./auth";
 export {
   bulkDeleteUsers,
   bulkUpdateUserStatus,
