@@ -157,11 +157,15 @@ export type CreateActionOptions<TSchema extends z.ZodType, TReturn> = {
   roles: readonly UserRole[] | "public";
   handler: (ctx: ActionContext<z.infer<TSchema>>) => TReturn;
   revalidate: (input: z.infer<TSchema>, result: ActionMetaResult) => string[];
-  audit: {
-    action: string;
-    entityType: string;
-    entityId: (input: z.infer<TSchema>, result: ActionMetaResult) => string;
-  };
+  audit:
+    | {
+        action: string;
+        entityType: string;
+        entityId: (input: z.infer<TSchema>, result: ActionMetaResult) => string;
+      }
+    | false;
+  /** Default true. Set false for read-only actions (search, uniqueness checks). */
+  touchSitemap?: boolean;
   rateLimit?: {
     windowMs: number;
     max: number;
@@ -194,9 +198,10 @@ export function createAction<TSchema extends z.ZodType, TReturn>(
           : await requireRole(options.roles);
 
       if (options.rateLimit) {
+        const actionName = options.audit ? options.audit.action : "action";
         const key =
           options.rateLimit.key?.(parsed.data, ipHash) ??
-          `${options.audit.action}:${ipHash}`;
+          `${actionName}:${ipHash}`;
         enforceRateLimit(key, options.rateLimit.windowMs, options.rateLimit.max);
       }
 
@@ -208,20 +213,22 @@ export function createAction<TSchema extends z.ZodType, TReturn>(
       });
       const meta = toMetaResult(result);
 
-      await prisma.auditLog.create({
-        data: {
-          userId: user?.id ?? null,
-          action: options.audit.action,
-          entityType: options.audit.entityType,
-          entityId: options.audit.entityId(parsed.data, meta),
-          after: jsonSafe(result),
-          ip: ipHash,
-        },
-      });
+      if (options.audit) {
+        await prisma.auditLog.create({
+          data: {
+            userId: user?.id ?? null,
+            action: options.audit.action,
+            entityType: options.audit.entityType,
+            entityId: options.audit.entityId(parsed.data, meta),
+            after: jsonSafe(result),
+            ip: ipHash,
+          },
+        });
+      }
 
       const tagList = [
         ...options.revalidate(parsed.data, meta),
-        tags.sitemap(),
+        ...(options.touchSitemap === false ? [] : [tags.sitemap()]),
       ];
       for (const tag of [...new Set(tagList)]) {
         revalidateTag(tag);

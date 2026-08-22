@@ -29,3 +29,11 @@ export {
 export { searchAll } from "./search";
 export { getBreadcrumbTrail } from "./breadcrumbs";
 export { getRedirectMap } from "./redirects";
+export {
+  getDashboardActivity,
+  getDashboardInquiries,
+  getDashboardSeoHealth,
+  getDashboardStats,
+  getDashboardTopProducts,
+} from "./admin-dashboard";
+export { listAdminFaqs, listAdminMedia, listMediaFolders, searchAdminEntities } from "./admin";

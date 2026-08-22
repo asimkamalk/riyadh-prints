@@ -187,6 +187,13 @@ export {
   updateInquiry,
 } from "./inquiry";
 export { signInWithPassword } from "./auth";
+export { signOutAdmin } from "./session";
+export {
+  checkSlug,
+  listAdminMediaFolders,
+  searchAdminCommand,
+  searchAdminMedia,
+} from "./admin";
 export {
   bulkDeleteUsers,
   bulkUpdateUserStatus,

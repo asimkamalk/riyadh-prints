@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { fontArabic, fontSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/components/admin/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
@@ -21,9 +23,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn(fontSans.variable, fontArabic.variable, "font-sans")}
     >
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>
+          {children}
+          <Toaster position="top-center" richColors />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
