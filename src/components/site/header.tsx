@@ -38,7 +38,7 @@ export function SiteHeader({
             <MainNav locale={locale} items={navItems} />
             <div className="ms-auto flex items-center gap-1">
               <SearchTrigger locale={locale} />
-              <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
+              <Button asChild variant="accent" size="sm" className="hidden rounded-full sm:inline-flex">
                 <Link href={quoteHref as never}>{chromeText(locale, "requestQuote")}</Link>
               </Button>
               <MobileNav

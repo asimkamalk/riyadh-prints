@@ -53,6 +53,14 @@ export {
   updateService,
 } from "./service";
 export {
+  bulkDeleteTeamMembers,
+  deleteTeamMember,
+  duplicateTeamMember,
+  reorderTeamMembers,
+  saveTeamMember,
+  toggleTeamMemberVisible,
+} from "./team-member";
+export {
   bulkDeletePages,
   bulkUpdatePageStatus,
   createPage,

@@ -14,24 +14,37 @@ import { getPublishedProducts } from "@/server/queries/products";
 import { getAllServices } from "@/server/queries/services";
 import { getPartners, getSiteSettings, getStats } from "@/server/queries/settings";
 import { getPublishedTestimonials } from "@/server/queries/testimonials";
+import { getVisibleTeamMembers } from "@/server/queries/team-members";
 import type { CategoryTreeNode, MediaDto, PageSectionDto } from "@/types/content";
 
 function collectMediaIds(sections: PageSectionDto[]): string[] {
   const ids = new Set<string>();
-  for (const section of sections) {
-    const settings = asRecord(section.settings);
-    const imageId = asString(settings.imageId);
-    if (imageId) {
-      ids.add(imageId);
+  function walk(value: unknown) {
+    if (!value) {
+      return;
     }
-    const data = asRecord(section.data);
-    const items = Array.isArray(data.items) ? data.items : [];
-    for (const item of items) {
-      const mediaId = asString(asRecord(item).mediaId);
-      if (mediaId) {
-        ids.add(mediaId);
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value !== "object") {
+      return;
+    }
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      if (
+        (key === "imageId" || key === "mediaId" || key === "leftImageId" || key === "rightImageId") &&
+        typeof nested === "string" &&
+        nested
+      ) {
+        ids.add(nested);
+      } else {
+        walk(nested);
       }
     }
+  }
+  for (const section of sections) {
+    walk(section.settings);
+    walk(section.data);
   }
   return [...ids];
 }
@@ -83,7 +96,12 @@ export async function resolveSectionRenderData(input: {
     }
   }
 
-  const [products, services, stats, partners, testimonials, settings, globalFaqs, pageFaqs, mediaById, ...trees] =
+  const needsTeam = input.sections.some(
+    (section) =>
+      section.type === "GALLERY" && asString(asRecord(section.settings).appearance) === "people",
+  );
+
+  const [products, services, stats, partners, testimonials, settings, globalFaqs, pageFaqs, mediaById, teamMembers, ...trees] =
     await Promise.all([
       getPublishedProducts({ locale: input.locale, featured: true, perPage: 24 }),
       getAllServices(input.locale, false),
@@ -94,6 +112,7 @@ export async function resolveSectionRenderData(input: {
       getFaqsFor({ locale: input.locale, scope: "GLOBAL" }),
       getFaqsFor({ locale: input.locale, scope: "PAGE", entityId: input.pageId }),
       mediaByIds(collectMediaIds(input.sections), input.locale),
+      needsTeam ? getVisibleTeamMembers(input.locale) : Promise.resolve([]),
       ...[...kinds].map((kind) => getCategoryTree(input.locale, kind)),
     ]);
 
@@ -112,6 +131,7 @@ export async function resolveSectionRenderData(input: {
       stats,
       partners,
       testimonials,
+      teamMembers,
       faqs: globalFaqs,
       mediaById,
       pageId: input.pageId,

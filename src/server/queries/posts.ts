@@ -23,9 +23,11 @@ import {
   postHref,
   published,
   seoSelect,
+  slugsFromTranslations,
   toIso,
   toJson,
   translationLocales,
+  ALL_TRANSLATION_LOCALES,
 } from "./_shared";
 
 const DEFAULT_PER_PAGE = 9;
@@ -279,7 +281,7 @@ export async function getPostBySlug(
         select: {
           ...postCardSelect(locale),
           translations: {
-            where: { locale: { in: translationLocales(locale) } },
+            where: { locale: { in: ALL_TRANSLATION_LOCALES } },
             select: {
               locale: true,
               title: true,
@@ -323,6 +325,7 @@ export async function getPostBySlug(
           return [{ slug: tag.value.slug, name: tag.value.name }];
         }),
         seo: mapSeo(picked.value),
+        slugs: slugsFromTranslations(row.translations, row.slug),
       };
     },
   });
@@ -403,6 +406,64 @@ export async function getPostSlugsForSitemap(): Promise<SitemapSlug[]> {
         changeFrequency: row.changeFrequency,
         priority: row.priority,
       }));
+    },
+  });
+}
+
+export type PostTagDto = {
+  slug: string;
+  name: string;
+  description: string | null;
+  identitySlug: string;
+  slugs: { en: string; ar: string };
+};
+
+export async function getTagBySlug(slug: string, locale: Locale): Promise<PostTagDto | null> {
+  return cachedQuery({
+    key: ["post-tag-by-slug", slug, locale],
+    tags: [tags.posts()],
+    fn: async () => {
+      const row = await prisma.tag.findFirst({
+        where: {
+          kind: "POST",
+          OR: [{ slug }, { translations: { some: { slug } } }],
+        },
+        select: {
+          slug: true,
+          translations: {
+            where: { locale: { in: ALL_TRANSLATION_LOCALES } },
+            select: { locale: true, name: true, slug: true, description: true },
+          },
+        },
+      });
+      if (!row) {
+        return null;
+      }
+      const picked = pickTranslation(row.translations, locale);
+      if (!picked) {
+        return null;
+      }
+      return {
+        identitySlug: row.slug,
+        slug: picked.value.slug,
+        name: picked.value.name,
+        description: picked.value.description,
+        slugs: slugsFromTranslations(row.translations, row.slug),
+      };
+    },
+  });
+}
+
+export async function getPostTagSlugs(): Promise<string[]> {
+  return cachedQuery({
+    key: ["post-tag-slugs"],
+    tags: [tags.posts(), tags.sitemap()],
+    fn: async () => {
+      const rows = await prisma.tag.findMany({
+        where: { kind: "POST" },
+        select: { slug: true },
+      });
+      return rows.map((row) => row.slug);
     },
   });
 }

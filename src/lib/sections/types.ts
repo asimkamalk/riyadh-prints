@@ -13,6 +13,7 @@ import type {
   ServiceCard,
   StatDto,
   TestimonialDto,
+  TeamMemberCard,
 } from "@/types/content";
 
 export type { SectionType };
@@ -62,6 +63,7 @@ export type SectionResolvedData = {
   partners: PartnerDto[];
   testimonials: TestimonialDto[];
   faqs: FaqDto[];
+  teamMembers: TeamMemberCard[];
   mediaById: Record<string, MediaDto>;
   pageId: string;
   quoteHref: string;

@@ -30,16 +30,14 @@ export function SectionPanel({
 
   return (
     <div className="grid gap-8">
-      <section className="grid gap-3">
-        <h3 className="text-sm font-medium">Layout</h3>
-        <SchemaForm
-          fields={[...layoutEditorFields, ...definition.settingsFields]}
-          value={settingsRecord}
-          onChange={(next) => onChange({ settings: next })}
-        />
-      </section>
+      <div>
+        <h3 className="text-base font-semibold tracking-tight">Editing {definition.label}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Wrap a word in **double asterisks** to colour it purple on the site.
+        </p>
+      </div>
       <section>
-        <h3 className="mb-3 text-sm font-medium">Content</h3>
+        <h4 className="mb-3 text-sm font-medium">Content</h4>
         <LocaleTabs
           arabicTranslated={JSON.stringify(dataArRecord) !== "{}"}
           onCopyFromEnglish={() => onChange({ dataAr: dataEnRecord })}
@@ -59,6 +57,15 @@ export function SectionPanel({
               onChangeSettings={(next) => onChange({ settings: next })}
             />
           }
+        />
+      </section>
+      <section className="grid gap-3 border-t pt-6">
+        <h4 className="text-sm font-medium">Layout</h4>
+        <SchemaForm
+          className="sm:grid-cols-2"
+          fields={[...layoutEditorFields, ...definition.settingsFields]}
+          value={settingsRecord}
+          onChange={(next) => onChange({ settings: next })}
         />
       </section>
     </div>

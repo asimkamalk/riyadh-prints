@@ -16,6 +16,18 @@ export function translationLocales(requested: Locale): PrismaLocale[] {
   return requested === "ar" ? ["AR", "EN"] : ["EN"];
 }
 
+export const ALL_TRANSLATION_LOCALES: PrismaLocale[] = ["EN", "AR"];
+
+export function slugsFromTranslations(
+  translations: { locale: PrismaLocale; slug: string }[],
+  identitySlug: string,
+): { en: string; ar: string } {
+  return {
+    en: translations.find((row) => row.locale === "EN")?.slug ?? identitySlug,
+    ar: translations.find((row) => row.locale === "AR")?.slug ?? identitySlug,
+  };
+}
+
 export type PickedTranslation<T> = {
   value: T;
   servedLocale: Locale;
@@ -192,9 +204,9 @@ export function categoryHref(
 ): string {
   const path =
     kind === "POST"
-      ? `/blog/category/${slug}`
+      ? `/blogs/category/${slug}`
       : kind === "PORTFOLIO"
-        ? `/portfolio/category/${slug}`
+        ? `/portfolio`
         : kind === "SERVICE"
           ? `/services`
           : `/product-category/${slug}`;
@@ -206,7 +218,7 @@ export function serviceHref(locale: Locale, slug: string): string {
 }
 
 export function postHref(locale: Locale, slug: string): string {
-  return localizeHref(locale, `/blog/${slug}`);
+  return localizeHref(locale, `/blogs/${slug}`);
 }
 
 export function projectHref(locale: Locale, slug: string): string {
@@ -223,6 +235,10 @@ export function pageHref(locale: Locale, segments: string[]): string {
 
 export function authorHref(locale: Locale, slug: string): string {
   return localizeHref(locale, `/author/${slug}`);
+}
+
+export function teamMemberHref(locale: Locale, slug: string): string {
+  return localizeHref(locale, `/about/${slug}`);
 }
 
 export function pagination(total: number, page: number, perPage: number) {

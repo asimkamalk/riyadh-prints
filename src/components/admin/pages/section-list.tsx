@@ -58,7 +58,7 @@ export function SectionList({
         const summary = definition.summarize(item.dataEn);
         return (
           <div
-            className={`flex items-center gap-2 rounded-md border px-2 py-2 ${selectedId === item.id ? "border-primary bg-muted/40" : ""}`}
+            className={`flex min-w-0 items-center gap-2 rounded-md border px-2 py-2 ${selectedId === item.id ? "border-primary bg-muted/40" : ""}`}
           >
             {handle}
             <button

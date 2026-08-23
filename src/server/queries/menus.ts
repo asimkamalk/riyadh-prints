@@ -146,7 +146,7 @@ async function resolveHref(row: MenuRow, locale: Locale): Promise<string> {
     const slug =
       pickTranslation(post?.translations ?? [], locale)?.value.slug ??
       post?.slug;
-    return slug ? postHref(locale, slug) : localizeHref(locale, "/blog");
+    return slug ? postHref(locale, slug) : localizeHref(locale, "/blogs");
   }
 
   if (row.linkType === "PROJECT") {
@@ -195,7 +195,7 @@ export async function getMenu(
   locale: Locale,
 ): Promise<MenuItemDto[]> {
   return cachedQuery({
-    key: ["menu", location, locale],
+    key: ["menu", location, locale, "v2"],
     tags: [tags.menu(location), tags.global()],
     fn: async () => {
       const rows = await prisma.menuItem.findMany({

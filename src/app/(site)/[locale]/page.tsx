@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { CmsPageView } from "@/components/site/cms-page";
 import { firstSearchParam } from "@/components/site/draft-preview-banner";
 import { isLocale, type Locale } from "@/i18n/locales";
-import { withLocalePath } from "@/i18n/routing";
-import { absoluteUrl } from "@/lib/utils/site-url";
+import { buildMetadata, contentMetadata } from "@/lib/seo/metadata";
 import { resolveCmsPage } from "@/server/queries/page-preview";
+
+export const revalidate = 60;
 
 type HomePageProps = {
   params: Promise<{ locale: string }>;
@@ -24,24 +25,17 @@ export async function generateMetadata({
   const locale = rawLocale as Locale;
   const resolved = await resolveCmsPage([], locale, firstSearchParam((await searchParams).preview));
   if (!resolved) {
-    return { title: "Riyadh Prints" };
+    return buildMetadata({ locale, path: "/", derivedTitle: "Riyadh Prints", noIndex: true });
   }
   const { entity, isPreview } = resolved;
-  const title = entity.seo.metaTitle || entity.title;
-  const description = entity.seo.metaDescription || entity.excerpt || undefined;
-  return {
-    title,
-    description,
-    robots: { index: !isPreview && !entity.seo.noIndex, follow: !entity.seo.noFollow },
-    alternates: {
-      canonical: entity.seo.canonicalUrl || absoluteUrl(withLocalePath(locale, "/")),
-      languages: {
-        en: absoluteUrl(withLocalePath("en", "/")),
-        ar: absoluteUrl(withLocalePath("ar", "/")),
-        "x-default": absoluteUrl(withLocalePath("en", "/")),
-      },
-    },
-  };
+  return contentMetadata({
+    locale,
+    path: "/",
+    seo: entity.seo,
+    derivedTitle: entity.title,
+    derivedDescription: entity.excerpt,
+    noIndex: isPreview,
+  });
 }
 
 export default async function HomePage({ params, searchParams }: HomePageProps) {

@@ -41,7 +41,29 @@ export async function getAlternateLocaleHref(pathname: string, from: Locale): Pr
   const route = parseSitePath(pathname);
 
   if (route.kind === "home" || route.kind === "search") {
-    return home(to);
+    return route.kind === "search" ? withLocalePath(to, "/search") : home(to);
+  }
+
+  if (route.kind === "shop") {
+    return withLocalePath(to, "/shop");
+  }
+  if (route.kind === "services") {
+    return withLocalePath(to, "/services");
+  }
+  if (route.kind === "blogs") {
+    return withLocalePath(to, "/blogs");
+  }
+  if (route.kind === "portfolio") {
+    return withLocalePath(to, "/portfolio");
+  }
+  if (route.kind === "quote") {
+    return withLocalePath(to, "/request-a-quote");
+  }
+  if (route.kind === "contact") {
+    return withLocalePath(to, "/contact");
+  }
+  if (route.kind === "faqs") {
+    return withLocalePath(to, "/faqs");
   }
 
   const fromLocale = toPrismaLocale(from);
@@ -96,6 +118,31 @@ export async function getAlternateLocaleHref(pathname: string, from: Locale): Pr
     });
     const slug = row ? otherSlug(row.translations, to) : null;
     return slug ? postHref(to, slug) : home(to);
+  }
+
+  if (route.kind === "post-category") {
+    const row = await prisma.category.findFirst({
+      where: {
+        status: "PUBLISHED",
+        kind: "POST",
+        translations: { some: { locale: fromLocale, slug: route.slug } },
+      },
+      select: { translations: { select: { locale: true, slug: true } } },
+    });
+    const slug = row ? otherSlug(row.translations, to) : null;
+    return slug ? categoryHref(to, "POST", slug) : withLocalePath(to, "/blogs");
+  }
+
+  if (route.kind === "post-tag") {
+    const row = await prisma.tag.findFirst({
+      where: {
+        kind: "POST",
+        translations: { some: { locale: fromLocale, slug: route.slug } },
+      },
+      select: { translations: { select: { locale: true, slug: true } } },
+    });
+    const slug = row ? otherSlug(row.translations, to) : null;
+    return slug ? withLocalePath(to, `/blogs/tag/${slug}`) : withLocalePath(to, "/blogs");
   }
 
   if (route.kind === "project") {

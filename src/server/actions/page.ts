@@ -349,13 +349,24 @@ export const savePage = createAction({
     if (input.id && (await pageParentWouldCycle(input.id, input.parentId ?? null))) {
       throw new ActionError("A page cannot be nested under itself.");
     }
-    const slug = await generateUniqueSlug("page", "en", input.slugEn ?? input.titleEn, input.id);
-    const slugAr = await generateUniqueSlug(
-      "page",
-      "ar",
-      input.slugAr ?? input.titleAr ?? input.titleEn,
-      input.id,
-    );
+    const pinned = input.id
+      ? await prisma.page.findUnique({
+          where: { id: input.id },
+          select: { slug: true, translations: { select: { locale: true, slug: true } } },
+        })
+      : null;
+    const keepPinned = pinned?.slug === "home" || pinned?.slug === "shop";
+    const slug = keepPinned && pinned
+      ? pinned.slug
+      : await generateUniqueSlug("page", "en", input.slugEn ?? input.titleEn, input.id);
+    const slugAr = keepPinned && pinned
+      ? (pinned.translations.find((row) => row.locale === "AR")?.slug ?? pinned.slug)
+      : await generateUniqueSlug(
+          "page",
+          "ar",
+          input.slugAr ?? input.titleAr ?? input.titleEn,
+          input.id,
+        );
     const status = input.status ?? "DRAFT";
     const publishedAt = parsePublishedAt(input.publishedAt);
     const core = {

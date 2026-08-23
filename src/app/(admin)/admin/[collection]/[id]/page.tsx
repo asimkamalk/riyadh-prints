@@ -7,7 +7,7 @@ import { adminCollectionMeta } from "@/components/admin/collection-meta";
 import { adminNavItemByHref } from "@/components/admin/nav-config";
 import { adminPageMetadata } from "@/components/admin/page-meta";
 import { JsonLd } from "@/components/seo/json-ld";
-import { absoluteUrl } from "@/lib/utils/site-url";
+import { breadcrumbList } from "@/lib/seo/json-ld";
 import { listAdminFaqs } from "@/server/queries/admin";
 
 type EntityPageProps = {
@@ -24,25 +24,6 @@ export async function generateMetadata({ params }: EntityPageProps) {
     item ? `${item.label} editor` : "Editor",
     `/admin/${collection}/${id}`,
   );
-}
-
-function breadcrumbJsonLd(crumbs: { href?: string; label: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: crumbs.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: item.label,
-      ...(item.href
-        ? {
-            item: item.href.startsWith("http")
-              ? item.href
-              : absoluteUrl(item.href),
-          }
-        : {}),
-    })),
-  };
 }
 
 export default async function AdminEntityPage({ params }: EntityPageProps) {
@@ -86,7 +67,7 @@ export default async function AdminEntityPage({ params }: EntityPageProps) {
 
   return (
     <div>
-      <JsonLd data={breadcrumbJsonLd(crumbs)} />
+      <JsonLd data={breadcrumbList(crumbs)} />
       <AdminEntityEditor
         collection={collection}
         id={id}

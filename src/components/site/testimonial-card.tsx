@@ -3,15 +3,12 @@ import type { TestimonialDto } from "@/types/content";
 
 export function TestimonialCard({ testimonial }: { testimonial: TestimonialDto }) {
   const byline = [testimonial.authorRole, testimonial.company].filter(Boolean).join(" · ");
+  const initial = testimonial.authorName.trim().charAt(0).toUpperCase() || "R";
+  const stars = Math.round(testimonial.rating ?? 0);
+
   return (
-    <figure className="grid h-full gap-4 rounded-xl border bg-card p-5 shadow-xs">
-      {testimonial.rating ? (
-        <p className="text-sm text-accent" aria-label={`${testimonial.rating} / 5`}>
-          {"★".repeat(Math.round(testimonial.rating))}
-        </p>
-      ) : null}
-      <blockquote className="text-sm leading-relaxed">{testimonial.quote}</blockquote>
-      <figcaption className="mt-auto flex items-center gap-3">
+    <figure className="grid h-full gap-3 rounded-2xl border bg-card p-5 shadow-xs">
+      <figcaption className="flex items-center gap-3">
         {testimonial.avatar ? (
           <span className="relative size-10 overflow-hidden rounded-full bg-muted">
             <SiteImage
@@ -21,12 +18,25 @@ export function TestimonialCard({ testimonial }: { testimonial: TestimonialDto }
               className="object-cover"
             />
           </span>
-        ) : null}
+        ) : (
+          <span
+            aria-hidden
+            className="grid size-10 place-items-center rounded-full bg-brand-100 text-sm font-semibold text-primary"
+          >
+            {initial}
+          </span>
+        )}
         <span>
-          <span className="block text-sm font-medium">{testimonial.authorName}</span>
+          <span className="block text-sm font-semibold">{testimonial.authorName}</span>
           {byline ? <span className="block text-xs text-muted-foreground">{byline}</span> : null}
         </span>
       </figcaption>
+      {stars > 0 ? (
+        <p className="text-sm text-amber-500" aria-label={`${stars} / 5`}>
+          {"★".repeat(stars)}
+        </p>
+      ) : null}
+      <blockquote className="text-sm leading-relaxed text-muted-foreground">{testimonial.quote}</blockquote>
     </figure>
   );
 }

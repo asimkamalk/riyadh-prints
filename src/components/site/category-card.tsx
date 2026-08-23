@@ -10,13 +10,40 @@ type CategoryCardData = CategorySummary & {
 
 export function CategoryCard({
   category,
+  variant = "card",
 }: {
   category: CategoryCardData | CategoryTreeNode;
+  variant?: "card" | "overlay";
 }) {
   const image = "image" in category ? category.image : null;
   const description = "shortDescription" in category ? category.shortDescription : null;
+
+  if (variant === "overlay") {
+    return (
+      <article className="group h-full overflow-hidden rounded-3xl">
+        <Link href={category.href as never} className="relative block aspect-[4/3] overflow-hidden bg-muted">
+          {image ? (
+            <SiteImage
+              media={image}
+              alt={image.alt || category.name}
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              className="motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-[1.04]"
+            />
+          ) : null}
+          <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+          <span className="absolute inset-x-0 bottom-0 grid gap-1 p-4 text-white">
+            <span className="font-semibold">{category.name}</span>
+            {description ? (
+              <span className="line-clamp-2 text-sm text-white/80">{description}</span>
+            ) : null}
+          </span>
+        </Link>
+      </article>
+    );
+  }
+
   return (
-    <article className="group h-full overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-elevate-1">
+    <article className="group h-full overflow-hidden rounded-2xl border bg-card shadow-xs transition-shadow hover:shadow-elevate-1">
       <Link href={category.href as never} className="block">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {image ? (

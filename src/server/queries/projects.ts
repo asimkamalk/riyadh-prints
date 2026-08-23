@@ -20,9 +20,11 @@ import {
   projectHref,
   published,
   seoSelect,
+  slugsFromTranslations,
   toIso,
   toJson,
   translationLocales,
+  ALL_TRANSLATION_LOCALES,
 } from "./_shared";
 
 const DEFAULT_PER_PAGE = 9;
@@ -204,7 +206,7 @@ export async function getProjectBySlug(
         select: {
           ...projectCardSelect(locale),
           translations: {
-            where: { locale: { in: translationLocales(locale) } },
+            where: { locale: { in: ALL_TRANSLATION_LOCALES } },
             select: {
               locale: true,
               title: true,
@@ -241,6 +243,7 @@ export async function getProjectBySlug(
           .map((image) => mapMedia(image.media, locale))
           .filter((image): image is NonNullable<typeof image> => image !== null),
         seo: mapSeo(picked.value),
+        slugs: slugsFromTranslations(row.translations, row.slug),
       };
     },
   });

@@ -119,6 +119,12 @@ export const adminNav: readonly AdminNavGroup[] = [
         icon: Library,
         keywords: "projects work",
       },
+      {
+        href: "/admin/team",
+        label: "Team",
+        icon: Users,
+        keywords: "staff profiles about",
+      },
     ],
   },
   {
@@ -256,6 +262,7 @@ export const entityCollectionHrefs = {
   page: "/admin/pages",
   post: "/admin/posts",
   project: "/admin/portfolio",
+  teamMember: "/admin/team",
   inquiry: "/admin/inquiries",
   media: "/admin/media",
 } as const;

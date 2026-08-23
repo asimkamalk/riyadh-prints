@@ -5,19 +5,22 @@ export {
   getPublishedProducts,
   getRelatedProducts,
 } from "./products";
-export { getCategoryBySlug, getCategoryByIdUncached, getCategoryTree } from "./categories";
+export { getProductTags } from "./product-tags";
+export { getCategoryBySlug, getCategoryByIdUncached, getCategoryTree, getCategoryIdentitySlugs } from "./categories";
 export {
   getAllServices,
   getServiceBySlug,
   getServiceByIdUncached,
   getServiceSlugsForSitemap,
 } from "./services";
-export { getPageBySlugPath, getPageSlugsForSitemap, getPageByIdUncached } from "./pages";
+export { getPageBySlugPath, getPageSlugsForSitemap, getPageByIdUncached, getPublishedPagePaths } from "./pages";
 export {
   getPostBySlug,
   getPosts,
   getPostSlugsForSitemap,
   getRelatedPosts,
+  getTagBySlug,
+  getPostTagSlugs,
 } from "./posts";
 export { getFaqsFor } from "./faqs";
 export { getMenu } from "./menus";
@@ -29,6 +32,13 @@ export {
   getProjectSlugsForSitemap,
   getPublishedProjects,
 } from "./projects";
+export {
+  getVisibleTeamMembers,
+  getTeamMemberBySlug,
+  getTeamMemberByIdUncached,
+  getTeamMemberSlugsForSitemap,
+  getTeamMemberStaticParams,
+} from "./team-members";
 export { searchAll } from "./search";
 export { getBreadcrumbTrail } from "./breadcrumbs";
 export { getRedirectMap } from "./redirects";
@@ -62,6 +72,12 @@ export {
   type AdminServiceDetail,
   type AdminServiceListItem,
 } from "./admin-services";
+export {
+  listAdminTeamMembers,
+  getAdminTeamMember,
+  type AdminTeamDetail,
+  type AdminTeamListItem,
+} from "./admin-team";
 export {
   resolveProductPage,
   resolveCategoryPage,

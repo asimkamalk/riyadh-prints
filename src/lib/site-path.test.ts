@@ -29,8 +29,22 @@ describe("parseSitePath", () => {
       kind: "page",
       segments: ["about", "asim-kamal"],
     });
-    expect(parseSitePath("/ar/services")).toEqual({ kind: "page", segments: ["services"] });
+    expect(parseSitePath("/ar/services")).toEqual({ kind: "services" });
     expect(parseSitePath("/preview/page/abc")).toEqual({ kind: "home" });
     expect(parseSitePath("/search")).toEqual({ kind: "search" });
+  });
+
+  it("reads shop, blogs taxonomy, and utility routes", () => {
+    expect(parseSitePath("/shop")).toEqual({ kind: "shop" });
+    expect(parseSitePath("/blogs")).toEqual({ kind: "blogs" });
+    expect(parseSitePath("/blogs/hello")).toEqual({ kind: "post", slug: "hello" });
+    expect(parseSitePath("/ar/blogs/category/paper")).toEqual({
+      kind: "post-category",
+      slug: "paper",
+    });
+    expect(parseSitePath("/blogs/tag/offset")).toEqual({ kind: "post-tag", slug: "offset" });
+    expect(parseSitePath("/request-a-quote")).toEqual({ kind: "quote" });
+    expect(parseSitePath("/contact")).toEqual({ kind: "contact" });
+    expect(parseSitePath("/faqs")).toEqual({ kind: "faqs" });
   });
 });

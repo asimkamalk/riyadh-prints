@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { ScalarField } from "@/components/sections/editors/schema-fields";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { asRecord } from "@/lib/sections/parse";
 import type { EditorField, SectionRecord } from "@/lib/sections/types";
 
@@ -12,17 +13,19 @@ export function SchemaForm({
   fields,
   value,
   onChange,
+  className,
 }: {
   fields: EditorField[];
   value: SectionRecord;
   onChange: (next: SectionRecord) => void;
+  className?: string;
 }) {
   function patch(key: string, next: unknown) {
     onChange({ ...value, [key]: next });
   }
 
   return (
-    <div className="grid gap-4">
+    <div className={cn("grid gap-4", className)}>
       {fields.map((field) =>
         field.kind === "list" ? (
           <ListField
@@ -57,7 +60,7 @@ function ListField({
     return Object.fromEntries(
       field.itemFields.map((item) => [
         item.key,
-        item.kind === "number" ? 0 : item.kind === "stringList" ? [] : "",
+        item.kind === "number" ? 0 : item.kind === "stringList" ? [] : item.kind === "boolean" ? false : "",
       ]),
     );
   }

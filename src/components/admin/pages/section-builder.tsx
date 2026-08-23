@@ -89,8 +89,8 @@ export function SectionBuilder({
         </Button>
       </div>
       {preview ? <SectionPreviewPane pageId={pageId} nonce={nonce} /> : null}
-      <div className="grid gap-4 xl:grid-cols-[minmax(16rem,22rem)_1fr]">
-        <div className="rounded-lg border p-2">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+        <div className="min-w-0 overflow-hidden rounded-lg border p-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto">
           <SectionList
             rows={rows}
             selectedId={selectedId}
@@ -100,7 +100,7 @@ export function SectionBuilder({
             onMutated={bumpPreview}
           />
         </div>
-        <div className="rounded-lg border p-4">
+        <div className="min-w-0 overflow-hidden rounded-lg border p-4">
           {selected ? (
             <SectionPanel
               type={selected.type}

@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 
+import type { SeedMediaAssets } from "./media";
 import { prisma, upsertMedia } from "./helpers";
 
 const MAPS_URL =
@@ -28,7 +29,7 @@ async function setting(key: string, group: string, value: Prisma.InputJsonValue)
   });
 }
 
-export async function seedSettings() {
+export async function seedSettings(media?: SeedMediaAssets) {
   const og = await upsertMedia({
     pathname: "seed/og-default.jpg",
     url: "https://riyadhprints.com/wp-content/uploads/2025/12/3-min-1-scaled-1170x630.jpg",
@@ -75,7 +76,7 @@ export async function seedSettings() {
 
   await seedLocation();
   await seedStats();
-  await seedPartners();
+  await seedPartners(media);
   await seedTestimonials();
 
   return { ogImageId: og.id };
@@ -154,10 +155,10 @@ async function seedLocation() {
 
 async function seedStats() {
   const stats = [
-    { value: "240+", suffix: "", sortOrder: 0, iconName: "building-2", en: "Companies served in KSA", ar: "شركة نخدمها في المملكة" },
-    { value: "Same day", suffix: "", sortOrder: 1, iconName: "zap", en: "Urgent printing in Riyadh", ar: "طباعة عاجلة داخل الرياض" },
-    { value: "2–4", suffix: " days", sortOrder: 2, iconName: "clock", en: "Standard turnaround", ar: "مدة التنفيذ المعتادة" },
-    { value: "KSA", suffix: "-wide", sortOrder: 3, iconName: "truck", en: "Delivery across the Kingdom", ar: "توصيل لجميع مدن المملكة" },
+    { value: "240", suffix: "+", sortOrder: 0, iconName: "building-2", en: "Trusted clients", ar: "عميل يثق بنا" },
+    { value: "4", suffix: "+", sortOrder: 1, iconName: "calendar", en: "Years in Riyadh", ar: "سنوات في الرياض" },
+    { value: "50", suffix: "+", sortOrder: 2, iconName: "package", en: "Products available", ar: "منتج متاح" },
+    { value: "Same day", suffix: "", sortOrder: 3, iconName: "zap", en: "Delivery available", ar: "توصيل متاح" },
   ];
 
   for (const stat of stats) {
@@ -189,13 +190,12 @@ async function seedStats() {
   }
 }
 
-async function seedPartners() {
+async function seedPartners(media?: SeedMediaAssets) {
   const partners = [
-    { name: "Al Rajhi Events", nameAr: "فعاليات الراجحي", url: "https://riyadhprints.com" },
-    { name: "Diriyah Season Vendor", nameAr: "موسم الدرعية", url: "https://riyadhprints.com" },
-    { name: "Riyadh Business Hub", nameAr: "مركز أعمال الرياض", url: "https://riyadhprints.com" },
-    { name: "Najd Catering", nameAr: "نجْد للضيافة", url: "https://riyadhprints.com" },
-    { name: "Qiddiya Partners", nameAr: "شركاء القدية", url: "https://riyadhprints.com" },
+    { name: "Hayat Charity", nameAr: "جمعية حياة الخيرية", url: "https://riyadhprints.com", logoId: media?.partnerHayat.id },
+    { name: "DR Nutrition", nameAr: "دكتور نيوتريشن", url: "https://riyadhprints.com", logoId: undefined },
+    { name: "Chat Globe", nameAr: "شات غلوب", url: "https://riyadhprints.com", logoId: undefined },
+    { name: "Creative", nameAr: "كرييتف", url: "https://riyadhprints.com", logoId: undefined },
   ];
 
   for (const [index, partner] of partners.entries()) {
@@ -203,7 +203,7 @@ async function seedPartners() {
     const row = existing
       ? await prisma.partner.update({
           where: { id: existing.id },
-          data: { websiteUrl: partner.url, sortOrder: index, isVisible: true },
+          data: { websiteUrl: partner.url, sortOrder: index, isVisible: true, logoId: partner.logoId },
         })
       : await prisma.partner.create({
           data: {
@@ -211,6 +211,7 @@ async function seedPartners() {
             websiteUrl: partner.url,
             sortOrder: index,
             isVisible: true,
+            logoId: partner.logoId,
           },
         });
 
@@ -225,6 +226,11 @@ async function seedPartners() {
       update: { name: partner.nameAr },
     });
   }
+
+  await prisma.partner.updateMany({
+    where: { name: { notIn: partners.map((partner) => partner.name) } },
+    data: { isVisible: false },
+  });
 }
 
 async function seedTestimonials() {

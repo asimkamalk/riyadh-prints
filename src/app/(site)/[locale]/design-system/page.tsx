@@ -8,7 +8,7 @@ import { TypeShowcase } from "./type-showcase";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { withLocalePath } from "@/i18n/routing";
-import { absoluteUrl } from "@/lib/utils/site-url";
+import { buildMetadata } from "@/lib/seo/metadata";
 
 type DesignSystemPageProps = {
   params: Promise<{ locale: string }>;
@@ -26,24 +26,15 @@ export async function generateMetadata({
     return {};
   }
 
-  const path = localePath(rawLocale, "/design-system");
-  const title = "Design system";
-  const description =
-    "Internal visual reference for Riyadh Prints tokens, type, and components. Delete before launch.";
-
-  return {
-    title,
-    description,
-    robots: { index: false, follow: false },
-    alternates: {
-      canonical: absoluteUrl(path),
-      languages: {
-        en: absoluteUrl(localePath("en", "/design-system")),
-        ar: absoluteUrl(localePath("ar", "/design-system")),
-        "x-default": absoluteUrl(localePath("en", "/design-system")),
-      },
-    },
-  };
+  return buildMetadata({
+    locale: rawLocale,
+    path: "/design-system",
+    title: "Design system",
+    description:
+      "Internal visual reference for Riyadh Prints tokens, type, and components. Delete before launch.",
+    noIndex: true,
+    noFollow: true,
+  });
 }
 
 export default async function DesignSystemPage({ params }: DesignSystemPageProps) {

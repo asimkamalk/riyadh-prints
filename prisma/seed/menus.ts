@@ -92,8 +92,8 @@ export async function seedMenus() {
   const productsParent = await addItem({
     location: "HEADER",
     sortOrder: 2,
-    linkType: "CATEGORY",
-    targetId: categories[0]?.id,
+    linkType: "INTERNAL",
+    internalPath: "/shop",
     labelEn: "Products",
     labelAr: "المنتجات",
     isMegaMenu: true,
@@ -303,5 +303,29 @@ export async function seedMenus() {
     targetId: page["refund-returns"],
     labelEn: "Refunds",
     labelAr: "الاسترجاع",
+  });
+}
+
+export async function pointHeaderProductsToShop() {
+  const items = await prisma.menuItem.findMany({
+    where: { location: "HEADER", parentId: null },
+    include: { translations: true },
+  });
+  const productsPage = await prisma.page.findUnique({
+    where: { slug: "products" },
+    select: { id: true },
+  });
+  const products = items.find(
+    (item) =>
+      item.translations.some((row) => row.locale === "EN" && row.label.trim().toLowerCase() === "products") ||
+      item.internalPath === "/products" ||
+      (productsPage != null && item.targetId === productsPage.id),
+  );
+  if (!products) {
+    return;
+  }
+  await prisma.menuItem.update({
+    where: { id: products.id },
+    data: { linkType: "INTERNAL", internalPath: "/shop", targetId: null },
   });
 }

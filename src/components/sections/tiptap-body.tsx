@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { asRecord, asString } from "@/lib/sections/parse";
+import { tiptapToPlainText } from "@/lib/tiptap-text";
+import { uniqueHeadingId } from "@/lib/tiptap-toc";
 
 type TiptapNode = {
   type?: unknown;
@@ -60,7 +62,7 @@ function wrapMarks(node: TiptapNode, children: ReactNode): ReactNode {
   const href = hrefOf(node);
   if (href) {
     tree = (
-      <Link href={href as never} className="underline">
+      <Link href={href as never} className="font-semibold">
         {tree}
       </Link>
     );
@@ -68,14 +70,22 @@ function wrapMarks(node: TiptapNode, children: ReactNode): ReactNode {
   return tree;
 }
 
-function renderNodes(value: unknown, keyPrefix: string): ReactNode[] {
+function renderNodes(
+  value: unknown,
+  keyPrefix: string,
+  headingIds: Map<string, number>,
+): ReactNode[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.flatMap((item, index) => renderNode(item, `${keyPrefix}-${index}`));
+  return value.flatMap((item, index) => renderNode(item, `${keyPrefix}-${index}`, headingIds));
 }
 
-function renderNode(value: unknown, key: string): ReactNode[] {
+function renderNode(
+  value: unknown,
+  key: string,
+  headingIds: Map<string, number>,
+): ReactNode[] {
   const node = asRecord(value) as TiptapNode;
   const type = asString(node.type);
   if (type === "text") {
@@ -88,19 +98,29 @@ function renderNode(value: unknown, key: string): ReactNode[] {
   if (type === "hardBreak") {
     return [<br key={key} />];
   }
-  const children = renderNodes(node.content, key);
+  const children = renderNodes(node.content, key, headingIds);
   if (type === "paragraph") {
     return [<p key={key}>{children}</p>];
   }
   if (type === "heading") {
     const level = Number(asRecord(node.attrs).level);
+    const text = tiptapToPlainText(value);
+    const id = text && (level === 2 || level === 3) ? uniqueHeadingId(text, headingIds) : undefined;
     if (level === 3) {
-      return [<h3 key={key}>{children}</h3>];
+      return [
+        <h3 key={key} id={id} className="scroll-mt-28">
+          {children}
+        </h3>,
+      ];
     }
     if (level === 4) {
       return [<h4 key={key}>{children}</h4>];
     }
-    return [<h2 key={key}>{children}</h2>];
+    return [
+      <h2 key={key} id={id} className="scroll-mt-28">
+        {children}
+      </h2>,
+    ];
   }
   if (type === "bulletList") {
     return [<ul key={key}>{children}</ul>];
@@ -113,6 +133,32 @@ function renderNode(value: unknown, key: string): ReactNode[] {
   }
   if (type === "blockquote") {
     return [<blockquote key={key}>{children}</blockquote>];
+  }
+  if (type === "horizontalRule") {
+    return [<hr key={key} />];
+  }
+  if (type === "tableWrapper") {
+    return [
+      <div key={key} className="overflow-x-auto">
+        {children}
+      </div>,
+    ];
+  }
+  if (type === "table") {
+    return [
+      <div key={key} className="overflow-x-auto">
+        <table>{children}</table>
+      </div>,
+    ];
+  }
+  if (type === "tableRow") {
+    return [<tr key={key}>{children}</tr>];
+  }
+  if (type === "tableHeader") {
+    return [<th key={key}>{children}</th>];
+  }
+  if (type === "tableCell") {
+    return [<td key={key}>{children}</td>];
   }
   return children;
 }
@@ -135,5 +181,5 @@ export function TiptapBody({ value }: { value: unknown }) {
   if (!Array.isArray(node.content)) {
     return null;
   }
-  return <>{renderNodes(node.content, "n")}</>;
+  return <>{renderNodes(node.content, "n", new Map())}</>;
 }

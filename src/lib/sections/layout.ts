@@ -92,9 +92,6 @@ export function layoutClassName(settings: unknown): { section: string; inner: st
       layout.container === "full" ? "w-full px-[var(--spacing-gutter)]" : "container-page",
       layout.container === "narrow" && "max-w-3xl",
       layout.container === "wide" && "max-w-7xl",
-      layout.alignment === "center" && "text-center",
-      layout.alignment === "end" && "text-end",
-      layout.alignment === "start" && "text-start",
     ),
   };
 }

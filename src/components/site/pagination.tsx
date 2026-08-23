@@ -86,7 +86,7 @@ export { pageSearchHref, paginationWindow } from "@/components/site/pagination-u
 function pageLinkClass(disabled = false, active = false): string {
   return cn(
     "inline-flex min-w-9 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-sm",
-    active && "border bg-background font-medium",
+    active && "min-w-9 rounded-full bg-primary font-medium text-primary-foreground",
     !active && !disabled && "hover:bg-muted",
     disabled && "pointer-events-none opacity-40",
   );

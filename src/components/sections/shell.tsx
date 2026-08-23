@@ -1,5 +1,5 @@
+import { layoutClassName, parseLayout } from "@/lib/sections/layout";
 import { asString } from "@/lib/sections/parse";
-import { layoutClassName } from "@/lib/sections/layout";
 import { Reveal } from "@/components/site/reveal";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,28 @@ export function SectionShell({
   );
 }
 
+export function AccentText({ children }: { children: string }) {
+  const parts = children.split(/(\*\*[^*]+\*\*)/g);
+  if (parts.length === 1) {
+    return children;
+  }
+  return (
+    <>
+      {parts.map((part, index) => {
+        const marked = part.match(/^\*\*([^*]+)\*\*$/);
+        if (marked?.[1]) {
+          return (
+            <span key={index} className="text-primary">
+              {marked[1]}
+            </span>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function SectionHeading({
   level,
   children,
@@ -27,28 +49,41 @@ export function SectionHeading({
   level: 1 | 2;
   children: React.ReactNode;
 }) {
+  const content = typeof children === "string" ? <AccentText>{children}</AccentText> : children;
   if (level === 1) {
-    return <h1 className="text-4xl font-semibold tracking-tight text-balance">{children}</h1>;
+    return <h1 className="text-h1 font-bold tracking-tight">{content}</h1>;
   }
-  return <h2 className="text-2xl font-semibold tracking-tight text-balance">{children}</h2>;
+  return <h2 className="text-h2 font-bold tracking-tight">{content}</h2>;
 }
 
 export function SectionIntro({
   heading,
   subheading,
   headingLevel,
+  settings,
 }: {
   heading: string;
   subheading?: string;
   headingLevel: 1 | 2;
+  settings?: unknown;
 }) {
   if (!heading && !subheading) {
     return null;
   }
+  const centered = settings ? parseLayout(settings).alignment === "center" : false;
   return (
-    <div className="mb-8 grid max-w-3xl gap-2">
+    <div className={cn("mb-8 w-full", centered && "text-center")}>
       {heading ? <SectionHeading level={headingLevel}>{heading}</SectionHeading> : null}
-      {subheading ? <p className="text-muted-foreground text-lg">{subheading}</p> : null}
+      {subheading ? (
+        <p
+          className={cn(
+            "mt-3 text-lg leading-relaxed text-muted-foreground",
+            centered && "mx-auto w-full max-w-(--container-2xl)",
+          )}
+        >
+          {subheading}
+        </p>
+      ) : null}
     </div>
   );
 }

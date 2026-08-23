@@ -22,7 +22,7 @@ async function loadRedirectMap(): Promise<RedirectMap> {
  */
 export function getRedirectMap(): Promise<RedirectMap> {
   return cachedQuery({
-    key: ["redirect-map"],
+    key: ["redirect-map", "v2"],
     tags: [tags.redirects()],
     fn: loadRedirectMap,
   });

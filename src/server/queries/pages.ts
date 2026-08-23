@@ -1,4 +1,5 @@
 import { tags } from "@/lib/cache-tags";
+import { RESERVED_SITE_SEGMENTS } from "@/lib/site-path";
 import { prisma } from "@/server/db";
 import type { PageDetail, PageSectionDto, SitemapSlug } from "@/types/content";
 import type { Locale } from "@/i18n/locales";
@@ -197,7 +198,7 @@ export async function getPageBySlugPath(
   const keyPath = segments.join("/");
 
   return cachedQuery({
-    key: ["page-by-slug-path", keyPath, locale],
+    key: ["page-by-slug-path", keyPath, locale, "v2"],
     tags: [tags.page(segments.at(-1) ?? "home"), tags.pages()],
     fn: async () => {
       let parentId: string | null = null;
@@ -253,6 +254,47 @@ export async function getPageSlugsForSitemap(): Promise<SitemapSlug[]> {
         changeFrequency: row.changeFrequency,
         priority: row.priority,
       }));
+    },
+  });
+}
+
+/**
+ * `generateStaticParams` for the CMS catch-all, excluding reserved public routes.
+ */
+export async function getPublishedPagePaths(): Promise<string[][]> {
+  const reserved = new Set<string>(RESERVED_SITE_SEGMENTS);
+  return cachedQuery({
+    key: ["published-page-paths"],
+    tags: [tags.pages(), tags.sitemap()],
+    fn: async () => {
+      const rows = await prisma.page.findMany({
+        where: published,
+        select: {
+          id: true,
+          parentId: true,
+          slug: true,
+          translations: { select: { locale: true, slug: true } },
+        },
+      });
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const paths: string[][] = [];
+      for (const row of rows) {
+        const segments: string[] = [];
+        let current: (typeof rows)[number] | undefined = row;
+        const seen = new Set<string>();
+        while (current && !seen.has(current.id)) {
+          seen.add(current.id);
+          const en = current.translations.find((item) => item.locale === "EN")?.slug;
+          segments.unshift(en || current.slug);
+          current = current.parentId ? byId.get(current.parentId) : undefined;
+        }
+        const filtered = segments.filter((segment) => segment && segment !== "home");
+        if (filtered.length === 0 || reserved.has(filtered[0] ?? "")) {
+          continue;
+        }
+        paths.push(filtered);
+      }
+      return paths;
     },
   });
 }

@@ -88,6 +88,7 @@ export type CategoryDetail = CategorySummary & {
   ancestors: CategorySummary[];
   children: CategorySummary[];
   seo: SeoDto;
+  slugs: { en: string; ar: string };
 };
 
 export type ProductCard = LocaleServeMeta & {
@@ -142,6 +143,7 @@ export type ProductDetail = ProductCard & {
   priceTiers: ProductPriceTierDto[];
   seo: SeoDto;
   publishedAt: string | null;
+  slugs: { en: string; ar: string };
 };
 
 export type SitemapSlug = {
@@ -175,6 +177,7 @@ export type ServiceDetail = ServiceCard & {
   ctaLabel: string | null;
   heroImage: MediaDto | null;
   seo: SeoDto;
+  slugs: { en: string; ar: string };
 };
 
 export type PageSectionDto = LocaleServeMeta & {
@@ -228,6 +231,7 @@ export type PostDetail = PostCard & {
   content: JsonValue | null;
   tags: { slug: string; name: string }[];
   seo: SeoDto;
+  slugs: { en: string; ar: string };
 };
 
 export type FaqDto = LocaleServeMeta & {
@@ -266,6 +270,8 @@ export type LocationDto = LocaleServeMeta & {
   country: string | null;
   googleMapsUrl: string | null;
   hours: JsonValue | null;
+  lat: number | null;
+  lng: number | null;
 };
 
 export type SiteSettingsDto = LocaleServeMeta & {
@@ -339,6 +345,32 @@ export type ProjectDetail = ProjectCard & {
   result: string | null;
   images: MediaDto[];
   seo: SeoDto;
+  slugs: { en: string; ar: string };
+};
+
+export type TeamMemberCard = LocaleServeMeta & {
+  id: string;
+  identitySlug: string;
+  slug: string;
+  href: string;
+  name: string;
+  role: string | null;
+  avatar: MediaDto | null;
+  sortOrder: number;
+};
+
+export type TeamMemberDetail = Omit<TeamMemberCard, "role"> & {
+  role: string | null;
+  secondaryRole: string | null;
+  bio: string | null;
+  experience: string | null;
+  awards: string | null;
+  skills: { label: string; percent: number }[];
+  email: string | null;
+  phone: string | null;
+  socials: { linkedin?: string; facebook?: string; twitter?: string };
+  seo: SeoDto;
+  slugs: { en: string; ar: string };
 };
 
 export type BreadcrumbEntityType =
@@ -347,7 +379,8 @@ export type BreadcrumbEntityType =
   | "service"
   | "page"
   | "post"
-  | "project";
+  | "project"
+  | "teamMember";
 
 export type BreadcrumbItemDto = LocaleServeMeta & {
   href: string | null;
@@ -366,6 +399,7 @@ export type SearchHit = LocaleServeMeta & {
 export type PublishedProductsQuery = {
   locale: Locale;
   categorySlug?: string;
+  tagSlug?: string;
   page?: number;
   perPage?: number;
   sort?: ProductSort;

@@ -73,6 +73,8 @@ export async function getSiteSettings(
             email: true,
             googleMapsUrl: true,
             hours: true,
+            lat: true,
+            lng: true,
             translations: {
               where: { locale: { in: translationLocales(locale) } },
               select: {
@@ -130,6 +132,8 @@ export async function getSiteSettings(
             country: picked.value.country,
             googleMapsUrl: location.googleMapsUrl,
             hours: toJson(location.hours),
+            lat: location.lat == null ? null : Number(location.lat),
+            lng: location.lng == null ? null : Number(location.lng),
             servedLocale: picked.servedLocale,
             isFallback: picked.isFallback,
           };

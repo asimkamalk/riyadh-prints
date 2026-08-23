@@ -2,18 +2,14 @@ import type { Metadata } from "next";
 
 import { fontArabic, fontSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
+import { SiteGraphJsonLd } from "@/components/seo/site-graph";
 import { ThemeProvider } from "@/components/admin/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { rootLayoutMetadata } from "@/lib/seo/metadata";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Riyadh Prints",
-    template: "%s · Riyadh Prints",
-  },
-  description: "Printing company in Riyadh, Saudi Arabia",
-};
+export const metadata: Metadata = rootLayoutMetadata();
 
 export default function RootLayout({
   children,
@@ -27,6 +23,7 @@ export default function RootLayout({
       className={cn(fontSans.variable, fontArabic.variable, "font-sans")}
     >
       <body suppressHydrationWarning>
+        <SiteGraphJsonLd />
         <ThemeProvider>
           {children}
           <Toaster position="top-center" richColors />

@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import Link from "next/link";
 
 import {
   Breadcrumb,
@@ -9,7 +10,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { JsonLd } from "@/components/seo/json-ld";
-import { absoluteUrl } from "@/lib/utils/site-url";
+import { isExternalHref } from "@/components/site/nav-utils";
+import { breadcrumbList } from "@/lib/seo/json-ld";
 
 export type Crumb = {
   href?: string;
@@ -17,19 +19,6 @@ export type Crumb = {
 };
 
 export function Breadcrumbs({ items }: { items: readonly Crumb[] }) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: item.label,
-      ...(item.href
-        ? { item: item.href.startsWith("http") ? item.href : absoluteUrl(item.href) }
-        : {}),
-    })),
-  };
-
   return (
     <div className="mb-8">
       <Breadcrumb>
@@ -42,8 +31,12 @@ export function Breadcrumbs({ items }: { items: readonly Crumb[] }) {
                 <BreadcrumbItem>
                   {isLast || !item.href ? (
                     <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                  ) : (
+                  ) : isExternalHref(item.href) ? (
                     <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbLink asChild>
+                      <Link href={item.href as never}>{item.label}</Link>
+                    </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
               </Fragment>
@@ -51,7 +44,7 @@ export function Breadcrumbs({ items }: { items: readonly Crumb[] }) {
           })}
         </BreadcrumbList>
       </Breadcrumb>
-      <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbList(items)} />
     </div>
   );
 }

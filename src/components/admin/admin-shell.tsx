@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminThemeSync } from "@/components/admin/admin-theme-sync";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Locale } from "@/i18n/locales";
@@ -25,6 +26,7 @@ export function AdminShell({
 
   return (
     <TooltipProvider>
+      <AdminThemeSync />
       <div className="flex min-h-dvh bg-background">
         <AdminSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} />
         <div className="flex min-w-0 flex-1 flex-col">

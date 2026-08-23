@@ -88,6 +88,12 @@ export const adminCollectionMeta: Record<string, AdminCollectionMeta> = {
     faqScope: "PROJECT",
     faqEntityKey: "projectId",
   },
+  team: {
+    slug: "team",
+    href: "/admin/team",
+    slugModel: "teamMember",
+    pathPrefix: "/about",
+  },
   inquiries: {
     slug: "inquiries",
     href: "/admin/inquiries",

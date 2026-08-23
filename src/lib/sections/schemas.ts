@@ -10,11 +10,14 @@ const optionalId = z.string().min(1).optional().nullable();
 const itemSchema = z.object({
   title: text(120),
   body: longText(500),
+  highlight: z.boolean().default(false),
 });
 
 const mediaItemSchema = z.object({
   mediaId: z.string().min(1).default(""),
   alt: text(200),
+  title: text(120),
+  caption: text(200),
 });
 
 const planSchema = z.object({
@@ -28,15 +31,26 @@ const planSchema = z.object({
 const stepSchema = z.object({
   title: text(120),
   body: longText(500),
+  mediaId: z.string().trim().default(""),
+});
+
+const heroSlideSchema = z.object({
+  heading: text(180),
+  subheading: longText(400),
+  cta: text(80),
+  href: z.string().trim().max(300).default(""),
+  mediaId: z.string().trim().default(""),
 });
 
 export const heroContentSchema = z.object({
+  eyebrow: text(120),
   heading: text(180),
   subheading: longText(400),
   primaryCta: text(80),
   secondaryCta: text(80),
   primaryHref: z.string().trim().max(300).default(""),
   secondaryHref: z.string().trim().max(300).default(""),
+  slides: z.array(heroSlideSchema).default([]),
 });
 
 export const heroSettingsSchema = sectionLayoutSchema.extend({
@@ -46,12 +60,17 @@ export const heroSettingsSchema = sectionLayoutSchema.extend({
 });
 
 export const uspContentSchema = z.object({
+  eyebrow: text(120),
   heading: text(120),
+  body: longText(800),
+  cta: text(80),
+  href: z.string().trim().max(300).default(""),
   items: z.array(itemSchema).default([]),
 });
 
 export const uspSettingsSchema = sectionLayoutSchema.extend({
   columns: z.number().int().min(1).max(6).default(4),
+  appearance: z.enum(["cards", "numbered", "bar", "split"]).default("cards"),
 });
 
 export const headingContentSchema = z.object({
@@ -79,14 +98,19 @@ export const richTextContentSchema = z.object({
 });
 
 export const imageTextContentSchema = z.object({
+  eyebrow: text(120),
   heading: text(160),
   body: longText(2000),
   cta: text(80),
   href: z.string().trim().max(300).default(""),
+  statValue: text(40),
+  statLabel: text(80),
+  items: z.array(itemSchema).default([]),
 });
 
 export const imageTextSettingsSchema = sectionLayoutSchema.extend({
   mediaSide: z.enum(["start", "end"]).default("end"),
+  appearance: z.enum(["default", "story"]).default("default"),
   imageId: optionalId,
 });
 
@@ -115,6 +139,9 @@ export const ctaBannerContentSchema = z.object({
 
 export const ctaBannerSettingsSchema = sectionLayoutSchema.extend({
   variant: z.enum(["accent", "inverse", "muted"]).default("accent"),
+  layout: z.enum(["default", "showcase"]).default("default"),
+  leftImageId: optionalId,
+  rightImageId: optionalId,
 });
 
 export const faqContentSchema = z.object({
@@ -126,8 +153,13 @@ export const faqSettingsSchema = sectionLayoutSchema.extend({
 });
 
 export const galleryContentSchema = z.object({
+  eyebrow: text(120),
   heading: text(160),
   items: z.array(mediaItemSchema).default([]),
+});
+
+export const gallerySettingsSchema = sectionLayoutSchema.extend({
+  appearance: z.enum(["default", "people"]).default("default"),
 });
 
 export const pricingContentSchema = z.object({
@@ -138,6 +170,7 @@ export const pricingContentSchema = z.object({
 
 export const stepsContentSchema = z.object({
   heading: text(160),
+  subheading: longText(400),
   steps: z.array(stepSchema).default([]),
 });
 
@@ -157,16 +190,34 @@ export const contactFormSettingsSchema = sectionLayoutSchema.extend({
 });
 
 export const heroFields: EditorField[] = [
+  { key: "eyebrow", label: "Eyebrow", kind: "text" },
   { key: "heading", label: "Heading", kind: "text" },
   { key: "subheading", label: "Subheading", kind: "textarea" },
   { key: "primaryCta", label: "Primary CTA label", kind: "text" },
   { key: "secondaryCta", label: "Secondary CTA label", kind: "text" },
   { key: "primaryHref", label: "Primary CTA URL", kind: "url" },
   { key: "secondaryHref", label: "Secondary CTA URL", kind: "url" },
+  {
+    key: "slides",
+    label: "Carousel slides",
+    kind: "list",
+    addLabel: "Add slide",
+    itemFields: [
+      { key: "heading", label: "Slide heading", kind: "text" },
+      { key: "subheading", label: "Slide subheading", kind: "textarea" },
+      { key: "cta", label: "Slide CTA", kind: "text" },
+      { key: "href", label: "Slide CTA URL", kind: "url" },
+      { key: "mediaId", label: "Slide image", kind: "media" },
+    ],
+  },
 ];
 
 export const uspFields: EditorField[] = [
+  { key: "eyebrow", label: "Eyebrow", kind: "text" },
   { key: "heading", label: "Heading", kind: "text" },
+  { key: "body", label: "Body", kind: "textarea" },
+  { key: "cta", label: "CTA label", kind: "text" },
+  { key: "href", label: "CTA URL", kind: "url" },
   {
     key: "items",
     label: "Items",
@@ -175,6 +226,7 @@ export const uspFields: EditorField[] = [
     itemFields: [
       { key: "title", label: "Title", kind: "text" },
       { key: "body", label: "Body", kind: "textarea" },
+      { key: "highlight", label: "Highlight", kind: "boolean" },
     ],
   },
 ];
@@ -192,10 +244,23 @@ export const richTextFields: EditorField[] = [
 ];
 
 export const imageTextFields: EditorField[] = [
+  { key: "eyebrow", label: "Eyebrow", kind: "text" },
   { key: "heading", label: "Heading", kind: "text" },
   { key: "body", label: "Body", kind: "textarea" },
   { key: "cta", label: "CTA label", kind: "text" },
   { key: "href", label: "CTA URL", kind: "url" },
+  { key: "statValue", label: "Stat value", kind: "text" },
+  { key: "statLabel", label: "Stat label", kind: "text" },
+  {
+    key: "items",
+    label: "Bullets",
+    kind: "list",
+    addLabel: "Add bullet",
+    itemFields: [
+      { key: "title", label: "Title", kind: "text" },
+      { key: "highlight", label: "Highlight", kind: "boolean" },
+    ],
+  },
 ];
 
 export const ctaFields: EditorField[] = [
@@ -205,7 +270,22 @@ export const ctaFields: EditorField[] = [
   { key: "href", label: "CTA URL", kind: "url" },
 ];
 
-export const galleryFields: EditorField[] = [{ key: "heading", label: "Heading", kind: "text" }];
+export const galleryFields: EditorField[] = [
+  { key: "eyebrow", label: "Eyebrow", kind: "text" },
+  { key: "heading", label: "Heading", kind: "text" },
+  {
+    key: "items",
+    label: "Images",
+    kind: "list",
+    addLabel: "Add image",
+    itemFields: [
+      { key: "mediaId", label: "Image", kind: "media" },
+      { key: "alt", label: "Alt text", kind: "text" },
+      { key: "title", label: "Name", kind: "text" },
+      { key: "caption", label: "Role", kind: "text" },
+    ],
+  },
+];
 
 export const pricingFields: EditorField[] = [
   { key: "heading", label: "Heading", kind: "text" },
@@ -227,6 +307,7 @@ export const pricingFields: EditorField[] = [
 
 export const stepsFields: EditorField[] = [
   { key: "heading", label: "Heading", kind: "text" },
+  { key: "subheading", label: "Subheading", kind: "textarea" },
   {
     key: "steps",
     label: "Steps",
@@ -235,6 +316,7 @@ export const stepsFields: EditorField[] = [
     itemFields: [
       { key: "title", label: "Title", kind: "text" },
       { key: "body", label: "Body", kind: "textarea" },
+      { key: "mediaId", label: "Image", kind: "media" },
     ],
   },
 ];
@@ -274,6 +356,21 @@ export const limitSettingsFields: EditorField[] = [{ key: "limit", label: "Limit
 
 export const columnsSettingsFields: EditorField[] = [{ key: "columns", label: "Columns", kind: "number" }];
 
+export const uspSettingsFields: EditorField[] = [
+  { key: "columns", label: "Columns", kind: "number" },
+  {
+    key: "appearance",
+    label: "Appearance",
+    kind: "enum",
+    options: [
+      { value: "cards", label: "Cards" },
+      { value: "numbered", label: "Numbered" },
+      { value: "bar", label: "Trust bar" },
+      { value: "split", label: "Split story" },
+    ],
+  },
+];
+
 export const heroSettingsFields: EditorField[] = [
   {
     key: "layout",
@@ -307,6 +404,15 @@ export const imageTextSettingsFields: EditorField[] = [
       { value: "end", label: "End" },
     ],
   },
+  {
+    key: "appearance",
+    label: "Appearance",
+    kind: "enum",
+    options: [
+      { value: "default", label: "Default" },
+      { value: "story", label: "About story" },
+    ],
+  },
 ];
 
 export const ctaSettingsFields: EditorField[] = [
@@ -318,6 +424,29 @@ export const ctaSettingsFields: EditorField[] = [
       { value: "accent", label: "Accent" },
       { value: "inverse", label: "Inverse" },
       { value: "muted", label: "Muted" },
+    ],
+  },
+  {
+    key: "layout",
+    label: "Layout",
+    kind: "enum",
+    options: [
+      { value: "default", label: "Default" },
+      { value: "showcase", label: "Product showcase" },
+    ],
+  },
+  { key: "leftImageId", label: "Left image", kind: "media" },
+  { key: "rightImageId", label: "Right image", kind: "media" },
+];
+
+export const gallerySettingsFields: EditorField[] = [
+  {
+    key: "appearance",
+    label: "Appearance",
+    kind: "enum",
+    options: [
+      { value: "default", label: "Default" },
+      { value: "people", label: "Team" },
     ],
   },
 ];

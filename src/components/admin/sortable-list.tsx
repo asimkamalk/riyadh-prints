@@ -70,7 +70,7 @@ export function SortableList<T extends SortableItem>({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={optimistic.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-        <ul className={cn("grid gap-2", pending && "opacity-80")}>
+        <ul className={cn("grid min-w-0 gap-2", pending && "opacity-80")}>
           {optimistic.map((item) => (
             <SortableRow key={item.id} id={item.id}>
               {(handle) => renderItem(item, handle)}
@@ -110,7 +110,7 @@ function SortableRow({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && "opacity-70")}
+      className={cn("min-w-0", isDragging && "opacity-70")}
     >
       {children(handle)}
     </li>

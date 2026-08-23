@@ -12,9 +12,11 @@ import {
   published,
   seoSelect,
   serviceHref,
+  slugsFromTranslations,
   toIso,
   toJson,
   translationLocales,
+  ALL_TRANSLATION_LOCALES,
 } from "./_shared";
 
 function serviceCardSelect(locale: Locale) {
@@ -115,7 +117,7 @@ function serviceDetailSelect(locale: Locale) {
     ...serviceCardSelect(locale),
     heroImage: { select: mediaSelect(locale) },
     translations: {
-      where: { locale: { in: translationLocales(locale) } },
+      where: { locale: { in: ALL_TRANSLATION_LOCALES } },
       select: {
         locale: true,
         name: true,
@@ -158,7 +160,7 @@ function mapServiceDetail(
       jsonLdOverride: unknown;
       focusKeyword: string | null;
     }[];
-  } & ServiceCardRow,
+  } & Omit<ServiceCardRow, "translations">,
   locale: Locale,
 ): ServiceDetail | null {
   const card = mapServiceCard(row, locale);
@@ -176,6 +178,7 @@ function mapServiceDetail(
     ctaLabel: picked.value.ctaLabel,
     heroImage: mapMedia(row.heroImage, locale),
     seo: mapSeo(picked.value),
+    slugs: slugsFromTranslations(row.translations, row.slug),
   };
 }
 

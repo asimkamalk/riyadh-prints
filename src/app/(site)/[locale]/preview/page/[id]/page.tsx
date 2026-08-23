@@ -5,6 +5,7 @@ import { CmsPageView } from "@/components/site/cms-page";
 import { firstSearchParam } from "@/components/site/draft-preview-banner";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { verifyPreviewToken } from "@/lib/preview-token";
+import { buildMetadata } from "@/lib/seo/metadata";
 import { getPageByIdUncached } from "@/server/queries/pages";
 
 type DraftPreviewProps = {
@@ -13,10 +14,13 @@ type DraftPreviewProps = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
+  return buildMetadata({
+    locale: "en",
+    path: "/preview",
     title: "Draft preview",
-    robots: { index: false, follow: false },
-  };
+    noIndex: true,
+    noFollow: true,
+  });
 }
 
 export default async function DraftPagePreviewPage({ params, searchParams }: DraftPreviewProps) {

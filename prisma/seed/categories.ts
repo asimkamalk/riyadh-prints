@@ -1,4 +1,5 @@
 import { prisma } from "./helpers";
+import type { SeedMediaAssets } from "./media";
 
 type CategorySeed = {
   slug: string;
@@ -210,7 +211,7 @@ const categories: CategorySeed[] = [
   },
 ];
 
-export async function seedCategories() {
+export async function seedCategories(media?: SeedMediaAssets) {
   for (const item of categories) {
     const category = await prisma.category.upsert({
       where: { kind_slug: { kind: "PRODUCT", slug: item.slug } },
@@ -223,6 +224,7 @@ export async function seedCategories() {
         status: "PUBLISHED",
         showInSitemap: true,
         legacyPath: `/product-category/${item.slug}/`,
+        imageId: media?.categories[item.slug],
       },
       update: {
         sortOrder: item.sortOrder,
@@ -230,6 +232,7 @@ export async function seedCategories() {
         isFeatured: true,
         status: "PUBLISHED",
         legacyPath: `/product-category/${item.slug}/`,
+        imageId: media?.categories[item.slug],
       },
     });
 

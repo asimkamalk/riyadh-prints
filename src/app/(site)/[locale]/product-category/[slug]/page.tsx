@@ -1,21 +1,40 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 
-import { CategoryCard } from "@/components/site/category-card";
-import { DraftPreviewBanner, firstSearchParam } from "@/components/site/draft-preview-banner";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
+import { FaqSection } from "@/components/site/content-chrome";
+import { CategoryGrid } from "@/components/site/content-grids";
+import { DraftPreviewBanner, firstSearchParam } from "@/components/site/draft-preview-banner";
+import { pageText } from "@/components/site/page-copy";
+import { ShopCatalog } from "@/components/site/shop-catalog";
+import { flattenCategoryTree, parseShopFilters } from "@/components/site/shop-query";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { withLocalePath } from "@/i18n/routing";
-import { categoryJsonLd } from "@/lib/seo/catalogue-jsonld";
-import { absoluteUrl } from "@/lib/utils/site-url";
-import { resolveCategoryPage } from "@/server/queries/catalogue-preview";
+import { firstParam, parsePageParam } from "@/lib/search-params";
+import { collectionFromCategory, itemListFromProducts } from "@/lib/seo/json-ld";
+import { buildMetadata, contentMetadata, homeCrumb, localePairPaths } from "@/lib/seo/metadata";
+import {
+  getCategoryIdentitySlugs,
+  getCategoryTree,
+  getFaqsFor,
+  getProductTags,
+  getPublishedProducts,
+  resolveCategoryPage,
+} from "@/server/queries";
+
+export const revalidate = 60;
+export const dynamicParams = true;
 
 type PageProps = {
   params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateStaticParams() {
+  const slugs = await getCategoryIdentitySlugs("PRODUCT");
+  return slugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { locale: raw, slug } = await params;
@@ -23,25 +42,29 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     return {};
   }
   const locale = raw as Locale;
-  const resolved = await resolveCategoryPage(slug, locale, firstSearchParam((await searchParams).preview));
+  const sp = await searchParams;
+  const resolved = await resolveCategoryPage(slug, locale, firstSearchParam(sp.preview));
   if (!resolved) {
-    return { title: "Category" };
+    return buildMetadata({
+      locale,
+      path: `/product-category/${slug}`,
+      derivedTitle: "Category",
+      noIndex: true,
+    });
   }
   const { entity, isPreview } = resolved;
-  const path = `/product-category/${entity.identitySlug}`;
-  return {
-    title: entity.seo.metaTitle || entity.name,
-    description: entity.seo.metaDescription || entity.shortDescription || undefined,
-    robots: { index: !isPreview && !entity.seo.noIndex, follow: !entity.seo.noFollow },
-    alternates: {
-      canonical: entity.seo.canonicalUrl || absoluteUrl(withLocalePath(locale, path)),
-      languages: {
-        en: absoluteUrl(withLocalePath("en", path)),
-        ar: absoluteUrl(withLocalePath("ar", path)),
-        "x-default": absoluteUrl(withLocalePath("en", path)),
-      },
-    },
-  };
+  const page = parsePageParam(sp.page);
+  const q = firstParam(sp.q)?.trim();
+  return contentMetadata({
+    locale,
+    ...localePairPaths(locale, "/product-category", entity.slugs),
+    seo: entity.seo,
+    derivedTitle: entity.name,
+    derivedDescription: entity.shortDescription,
+    ogImage: entity.image?.url,
+    noIndex: isPreview || Boolean(q),
+    page,
+  });
 }
 
 export default async function ProductCategoryPage({ params, searchParams }: PageProps) {
@@ -50,13 +73,32 @@ export default async function ProductCategoryPage({ params, searchParams }: Page
     notFound();
   }
   const locale = raw as Locale;
-  const resolved = await resolveCategoryPage(slug, locale, firstSearchParam((await searchParams).preview));
+  const sp = await searchParams;
+  const resolved = await resolveCategoryPage(slug, locale, firstSearchParam(sp.preview));
   if (!resolved) {
     notFound();
   }
   const { entity, isPreview } = resolved;
+  const filters = parseShopFilters(sp);
+  const pathname = withLocalePath(locale, `/product-category/${entity.slug}`);
+  const shopPathname = withLocalePath(locale, "/shop");
+  const [products, faqs, tree, tags, recent] = await Promise.all([
+    getPublishedProducts({
+      locale,
+      categorySlug: entity.identitySlug,
+      tagSlug: filters.tag,
+      sort: filters.sort,
+      search: filters.q,
+      page: filters.page,
+    }),
+    getFaqsFor({ locale, scope: "CATEGORY", entityId: entity.id }),
+    getCategoryTree(locale, "PRODUCT"),
+    getProductTags(locale),
+    getPublishedProducts({ locale, sort: "newest", perPage: 5 }),
+  ]);
   const crumbs = [
-    { href: withLocalePath(locale, "/"), label: locale === "ar" ? "الرئيسية" : "Home" },
+    homeCrumb(locale),
+    { href: shopPathname, label: pageText(locale, "shop") },
     ...entity.ancestors.map((item) => ({ href: item.href, label: item.name })),
     { label: entity.name },
   ];
@@ -65,38 +107,44 @@ export default async function ProductCategoryPage({ params, searchParams }: Page
     <article className="container-page py-xl">
       {isPreview ? <DraftPreviewBanner /> : null}
       <Breadcrumbs items={crumbs} />
-      <JsonLd data={categoryJsonLd(entity)} />
-      {entity.image ? (
-        <div className="relative mb-8 aspect-[21/9] overflow-hidden rounded-xl bg-muted">
-          <Image
-            src={entity.image.url}
-            alt={entity.image.alt || entity.name}
-            fill
-            priority
-            className="object-cover"
-            sizes="100vw"
-          />
+      <JsonLd
+        data={[
+          collectionFromCategory(entity),
+          ...(products.items.length ? [itemListFromProducts(products.items)] : []),
+        ]}
+      />
+      <header className="mb-8">
+        <h1 className="text-3xl font-semibold tracking-tight">{entity.heroHeading || entity.name}</h1>
+        {entity.heroSubheading ? (
+          <p className="mt-2 text-lg text-muted-foreground">{entity.heroSubheading}</p>
+        ) : null}
+        {entity.shortDescription ? (
+          <p className="mt-3 text-muted-foreground">{entity.shortDescription}</p>
+        ) : null}
+      </header>
+      <ShopCatalog
+        locale={locale}
+        pathname={pathname}
+        shopPathname={shopPathname}
+        activeCategorySlug={entity.slug}
+        categories={flattenCategoryTree(tree)}
+        tags={tags}
+        recent={recent.items}
+        filters={filters}
+        products={products}
+      />
+      {entity.longDescription ? (
+        <div className="prose-rp prose-rp-wide mt-16">
+          <p>{entity.longDescription}</p>
         </div>
       ) : null}
-      <h1 className="text-3xl font-semibold tracking-tight">
-        {entity.heroHeading || entity.name}
-      </h1>
-      {entity.heroSubheading ? (
-        <p className="mt-2 text-lg text-muted-foreground">{entity.heroSubheading}</p>
-      ) : null}
-      {entity.shortDescription ? (
-        <p className="mt-4 text-muted-foreground">{entity.shortDescription}</p>
-      ) : null}
-      {entity.longDescription ? <p className="mt-4">{entity.longDescription}</p> : null}
       {entity.children.length ? (
-        <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {entity.children.map((child) => (
-            <li key={child.id}>
-              <CategoryCard category={child} />
-            </li>
-          ))}
-        </ul>
+        <section className="mt-16">
+          <h2 className="mb-4 text-xl font-semibold">{pageText(locale, "subcategories")}</h2>
+          <CategoryGrid categories={entity.children} />
+        </section>
       ) : null}
+      <FaqSection locale={locale} faqs={faqs} />
     </article>
   );
 }

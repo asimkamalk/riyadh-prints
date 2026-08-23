@@ -8,7 +8,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { absoluteUrl } from "@/lib/utils/site-url";
+import { buildMetadata } from "@/lib/seo/metadata";
 import { safeCallbackUrl } from "@/server/auth/callback-url";
 import { getCurrentUser } from "@/server/auth/guards";
 
@@ -19,23 +19,14 @@ type LoginPageProps = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Sign in";
-  const description = "Sign in to the Riyadh Prints admin dashboard.";
-  const canonical = absoluteUrl("/admin/login");
-
-  return {
-    title,
-    description,
-    robots: { index: false, follow: false },
-    alternates: {
-      canonical,
-      languages: {
-        en: canonical,
-        ar: canonical,
-        "x-default": canonical,
-      },
-    },
-  };
+  return buildMetadata({
+    locale: "en",
+    path: "/admin/login",
+    title: "Sign in",
+    description: "Sign in to the Riyadh Prints admin dashboard.",
+    noIndex: true,
+    noFollow: true,
+  });
 }
 
 export default async function AdminLoginPage({ searchParams }: LoginPageProps) {

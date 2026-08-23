@@ -16,7 +16,9 @@ import {
   pickTranslation,
   published,
   seoSelect,
+  slugsFromTranslations,
   translationLocales,
+  ALL_TRANSLATION_LOCALES,
 } from "./_shared";
 
 function categorySelect(locale: Locale) {
@@ -31,6 +33,32 @@ function categorySelect(locale: Locale) {
     image: { select: mediaSelect(locale) },
     translations: {
       where: { locale: { in: translationLocales(locale) } },
+      select: {
+        locale: true,
+        name: true,
+        slug: true,
+        shortDescription: true,
+        longDescription: true,
+        heroHeading: true,
+        heroSubheading: true,
+        ...seoSelect,
+      },
+    },
+  } as const;
+}
+
+function categoryDetailSelect(locale: Locale) {
+  return {
+    id: true,
+    slug: true,
+    kind: true,
+    parentId: true,
+    iconName: true,
+    isFeatured: true,
+    sortOrder: true,
+    image: { select: mediaSelect(locale) },
+    translations: {
+      where: { locale: { in: ALL_TRANSLATION_LOCALES } },
       select: {
         locale: true,
         name: true,
@@ -159,7 +187,7 @@ async function loadCategoryDetail(
         ? { OR: [{ slug: where.slug }, { translations: { some: { slug: where.slug } } }] }
         : {}),
     },
-    select: categorySelect(locale),
+    select: categoryDetailSelect(locale),
   });
   if (!row) {
     return null;
@@ -205,6 +233,7 @@ async function loadCategoryDetail(
       .map((child) => toSummary(child, locale))
       .filter((child): child is CategorySummary => child !== null),
     seo: mapSeo(picked.value),
+    slugs: slugsFromTranslations(row.translations, row.slug),
   };
 }
 
@@ -229,4 +258,18 @@ export async function getCategoryByIdUncached(
   locale: Locale,
 ): Promise<CategoryDetail | null> {
   return loadCategoryDetail({ id }, locale, true);
+}
+
+export async function getCategoryIdentitySlugs(kind: CategoryKind = "PRODUCT"): Promise<string[]> {
+  return cachedQuery({
+    key: ["category-identity-slugs", kind],
+    tags: [tags.categories(), tags.sitemap()],
+    fn: async () => {
+      const rows = await prisma.category.findMany({
+        where: { ...published, kind },
+        select: { slug: true },
+      });
+      return rows.map((row) => row.slug);
+    },
+  });
 }

@@ -31,6 +31,39 @@ export function tiptapDoc(...paragraphs: string[]): Prisma.InputJsonValue {
   };
 }
 
+type TiptapBlock =
+  | { type: "p"; text: string }
+  | { type: "h2"; text: string }
+  | { type: "ul"; items: string[] };
+
+export function tiptapFromBlocks(blocks: TiptapBlock[]): Prisma.InputJsonValue {
+  return {
+    type: "doc",
+    content: blocks.map((block) => {
+      if (block.type === "h2") {
+        return {
+          type: "heading",
+          attrs: { level: 2 },
+          content: [{ type: "text", text: block.text }],
+        };
+      }
+      if (block.type === "ul") {
+        return {
+          type: "bulletList",
+          content: block.items.map((text) => ({
+            type: "listItem",
+            content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+          })),
+        };
+      }
+      return {
+        type: "paragraph",
+        content: block.text ? [{ type: "text", text: block.text }] : [],
+      };
+    }),
+  };
+}
+
 export async function upsertMedia(input: {
   pathname: string;
   url: string;

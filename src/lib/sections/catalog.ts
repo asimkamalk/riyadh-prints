@@ -26,7 +26,6 @@ import { SECTION_TYPES } from "@/lib/sections/section-types";
 import {
   categoryGridSettingsSchema,
   categorySettingsFields,
-  columnsSettingsFields,
   contactFields,
   contactFormContentSchema,
   contactFormSettingsSchema,
@@ -41,6 +40,8 @@ import {
   featuredProductsSettingsSchema,
   galleryContentSchema,
   galleryFields,
+  gallerySettingsFields,
+  gallerySettingsSchema,
   headingContentSchema,
   headingFields,
   headingOnlyFields,
@@ -67,6 +68,7 @@ import {
   testimonialsSettingsSchema,
   uspContentSchema,
   uspFields,
+  uspSettingsFields,
   uspSettingsSchema,
   videoContentSchema,
   videoFields,
@@ -77,9 +79,9 @@ export { SECTION_TYPES, isSectionType } from "@/lib/sections/section-types";
 
 export const sectionTypeSchema = z.enum(SECTION_TYPES);
 
-function parsed<T>(schema: z.ZodType<T>, fallback: T): T {
+function parsed<T>(schema: z.ZodType<T>, fallback: unknown): T {
   const result = schema.safeParse({});
-  return result.success ? result.data : fallback;
+  return result.success ? result.data : (fallback as T);
 }
 
 function bundle(data: unknown, settings: unknown): SectionDefaults {
@@ -99,12 +101,14 @@ export const sectionCatalog = {
     settingsSchema: heroSettingsSchema,
     defaults: bundle(
       parsed(heroContentSchema, {
+        eyebrow: "",
         heading: "",
         subheading: "",
         primaryCta: "",
         secondaryCta: "",
         primaryHref: "",
         secondaryHref: "",
+        slides: [],
       }),
       parsed(heroSettingsSchema, {}),
     ),
@@ -119,9 +123,12 @@ export const sectionCatalog = {
     icon: LayoutGrid,
     schema: uspContentSchema,
     settingsSchema: uspSettingsSchema,
-    defaults: bundle(parsed(uspContentSchema, { heading: "", items: [] }), parsed(uspSettingsSchema, { columns: 4 })),
+    defaults: bundle(
+      parsed(uspContentSchema, { eyebrow: "", heading: "", body: "", cta: "", href: "", items: [] }),
+      parsed(uspSettingsSchema, { columns: 4, appearance: "cards" }),
+    ),
     editorFields: uspFields,
-    settingsFields: columnsSettingsFields,
+    settingsFields: uspSettingsFields,
     summarize: (data) => summarizeItems(data, "USP grid"),
   },
   SERVICE_GRID: {
@@ -189,7 +196,16 @@ export const sectionCatalog = {
     schema: imageTextContentSchema,
     settingsSchema: imageTextSettingsSchema,
     defaults: bundle(
-      parsed(imageTextContentSchema, { heading: "", body: "", cta: "", href: "" }),
+      parsed(imageTextContentSchema, {
+        eyebrow: "",
+        heading: "",
+        body: "",
+        cta: "",
+        href: "",
+        statValue: "",
+        statLabel: "",
+        items: [],
+      }),
       parsed(imageTextSettingsSchema, {}),
     ),
     editorFields: imageTextFields,
@@ -265,10 +281,13 @@ export const sectionCatalog = {
     description: "Image grid from the media library.",
     icon: Images,
     schema: galleryContentSchema,
-    settingsSchema: sectionLayoutSchema,
-    defaults: bundle(parsed(galleryContentSchema, { heading: "", items: [] }), {}),
+    settingsSchema: gallerySettingsSchema,
+    defaults: bundle(
+      parsed(galleryContentSchema, { eyebrow: "", heading: "", items: [] }),
+      parsed(gallerySettingsSchema, {}),
+    ),
     editorFields: galleryFields,
-    settingsFields: [],
+    settingsFields: gallerySettingsFields,
     summarize: (data) => summarizeItems(data, "Gallery"),
   },
   PRICING_TABLE: {
@@ -290,7 +309,7 @@ export const sectionCatalog = {
     icon: ListOrdered,
     schema: stepsContentSchema,
     settingsSchema: sectionLayoutSchema,
-    defaults: bundle(parsed(stepsContentSchema, { heading: "", steps: [] }), {}),
+    defaults: bundle(parsed(stepsContentSchema, { heading: "", subheading: "", steps: [] }), {}),
     editorFields: stepsFields,
     settingsFields: [],
     summarize: (data) => summarizeHeading(data, "Steps"),

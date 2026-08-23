@@ -495,7 +495,11 @@ model TeamMemberTranslation {
   name            String
   slug            String
   role            String?
+  secondaryRole   String?
   bio             String? @db.Text
+  experience      String? @db.Text
+  awards          String? @db.Text
+  skills          Json?
   metaTitle       String?
   metaDescription String?
   ogTitle         String?

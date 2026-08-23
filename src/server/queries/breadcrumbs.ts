@@ -129,7 +129,9 @@ export async function getBreadcrumbTrail(
               ? tags.page(slug)
               : entityType === "post"
                 ? tags.post(slug)
-                : tags.project(slug),
+                : entityType === "teamMember"
+                  ? tags.teamMember(slug)
+                  : tags.project(slug),
     ],
     fn: async () => {
       const home = homeCrumb(locale);
@@ -293,13 +295,43 @@ export async function getBreadcrumbTrail(
         return [
           home,
           {
-            href: locale === "ar" ? "/ar/blog" : "/blog",
+            href: locale === "ar" ? "/ar/blogs" : "/blogs",
             label: locale === "ar" ? "المدونة" : "Blog",
             servedLocale: locale,
             isFallback: false,
           },
           current(
             picked?.value.title ?? slug,
+            picked?.servedLocale ?? locale,
+            picked?.isFallback ?? false,
+          ),
+        ];
+      }
+
+      if (entityType === "teamMember") {
+        const member = await prisma.teamMember.findFirst({
+          where: {
+            isVisible: true,
+            OR: [{ slug }, { translations: { some: { slug } } }],
+          },
+          select: {
+            translations: {
+              where: { locale: { in: translationLocales(locale) } },
+              select: { locale: true, name: true, slug: true },
+            },
+          },
+        });
+        const picked = pickTranslation(member?.translations ?? [], locale);
+        return [
+          home,
+          {
+            href: pageHref(locale, ["about"]),
+            label: locale === "ar" ? "من نحن" : "About",
+            servedLocale: locale,
+            isFallback: false,
+          },
+          current(
+            picked?.value.name ?? slug,
             picked?.servedLocale ?? locale,
             picked?.isFallback ?? false,
           ),

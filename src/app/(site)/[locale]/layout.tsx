@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { DocumentLocale } from "@/components/site/document-locale";
+import { ForceLightScheme } from "@/components/site/force-light-scheme";
 import { SiteFooter } from "@/components/site/footer";
 import { SiteHeader } from "@/components/site/header";
 import { LazyWhatsAppFloat } from "@/components/site/lazy-whatsapp-float";
@@ -14,6 +15,8 @@ import {
   getPublicPathname,
   getSiteSettings,
 } from "@/server/queries";
+
+export const revalidate = 60;
 
 type SiteLocaleLayoutProps = {
   children: React.ReactNode;
@@ -54,6 +57,7 @@ export default async function SiteLocaleLayout({
       lang={localeLang(locale)}
       className={cn("flex min-h-dvh flex-col", locale === "ar" && "font-arabic")}
     >
+      <ForceLightScheme />
       <DocumentLocale locale={locale} />
       <SkipToContent locale={locale} />
       <div id="top" tabIndex={-1} className="h-px w-full outline-none" />

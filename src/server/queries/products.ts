@@ -24,9 +24,11 @@ import {
   productHref,
   published,
   seoSelect,
+  slugsFromTranslations,
   toIso,
   toJson,
   translationLocales,
+  ALL_TRANSLATION_LOCALES,
 } from "./_shared";
 
 const DEFAULT_PER_PAGE = 12;
@@ -228,6 +230,21 @@ function productWhere(input: PublishedProductsQuery): Prisma.ProductWhereInput {
           ],
         }
       : {}),
+    ...(input.tagSlug
+      ? {
+          tags: {
+            some: {
+              tag: {
+                kind: "PRODUCT",
+                OR: [
+                  { slug: input.tagSlug },
+                  { translations: { some: { slug: input.tagSlug } } },
+                ],
+              },
+            },
+          },
+        }
+      : {}),
   };
 }
 
@@ -256,6 +273,7 @@ export async function getPublishedProducts(
       sort,
       input.featured ? "1" : "0",
       input.search ?? "",
+      input.tagSlug ?? "",
     ],
     tags: cacheTags,
     fn: async () => {
@@ -289,7 +307,7 @@ function productDetailSelect(locale: Locale) {
     ...productCardSelect(locale),
     publishedAt: true,
     translations: {
-      where: { locale: { in: translationLocales(locale) } },
+      where: { locale: { in: ALL_TRANSLATION_LOCALES } },
       select: {
         locale: true,
         name: true,
@@ -408,6 +426,7 @@ function mapProductDetail(
     })),
     seo: mapSeo(picked.value),
     publishedAt: toIso(row.publishedAt),
+    slugs: slugsFromTranslations(row.translations, row.slug),
   };
 }
 

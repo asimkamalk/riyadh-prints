@@ -15,7 +15,7 @@ export function StatCounter({
   suffix: string | null;
 }) {
   return (
-    <p className="text-3xl font-semibold tabular-nums">
+            <p className="text-3xl font-bold tabular-nums">
       {prefix}
       <StatValue value={value} />
       {suffix}
